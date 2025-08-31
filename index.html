@@ -115,6 +115,11 @@
             border: 1px solid rgba(245, 158, 11, 0.5);
         }
         
+        .action-btn.danger {
+            background: rgba(239, 68, 68, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+        
         .btn-icon {
             font-size: 24px;
             margin-bottom: 5px;
@@ -150,6 +155,11 @@
         .success {
             background: rgba(34, 197, 94, 0.2);
             border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        
+        .danger {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
         }
         
         .loading {
@@ -194,7 +204,9 @@
             padding: 20px;
             border-radius: 12px;
             width: 90%;
-            max-width: 350px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         
         .close-btn {
@@ -225,6 +237,37 @@
             font-size: 16px;
             margin-top: 10px;
         }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .mini-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .mini-btn.success {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .mini-btn.danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .mini-btn.warning {
+            background: #f59e0b;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -239,6 +282,49 @@
         <div class="header">
             <h1>🐢 Turtle Dashboard</h1>
             <p id="lastUpdate">Loading...</p>
+        </div>
+        
+        <!-- Assignment Alert -->
+        <div id="assignmentAlert" class="status-card" style="display: none; border: 2px solid #f59e0b;">
+            <h3 style="color: #f59e0b; margin-bottom: 15px;">⚠️ Assignment Detected</h3>
+            <p id="assignmentMessage" style="margin-bottom: 15px; font-size: 14px;"></p>
+            <div class="btn-group">
+                <button class="mini-btn success" onclick="resolveAssignment('expired_worthless')">
+                    Expired Worthless
+                </button>
+                <button class="mini-btn danger" onclick="resolveAssignment('called_away')">
+                    LEAPS Called Away
+                </button>
+                <button class="mini-btn warning" onclick="resolveAssignment('assigned_stock')">
+                    Got Assigned Stock
+                </button>
+            </div>
+        </div>
+        
+        <!-- Short Stock Position (if exists) -->
+        <div id="stockPositionCard" class="status-card" style="display: none; border: 2px solid #ef4444;">
+            <h3 style="margin-bottom: 15px;">📉 Short Stock Position</h3>
+            <div class="status-row">
+                <span class="status-label">Shares</span>
+                <span class="status-value" id="stockShares">-100 SPY</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Assignment Price</span>
+                <span class="status-value" id="assignmentPrice">$595</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Current Price</span>
+                <span class="status-value" id="currentStockPrice">$592</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Unrealized P&L</span>
+                <span class="status-value" id="stockPnL">+$300</span>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="openTradeModal('close_stock_sell_call')" style="background: #22c55e; border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    Close Stock & Sell Call
+                </button>
+            </div>
         </div>
         
         <!-- Performance Summary -->
@@ -375,11 +461,6 @@
                 Open LEAPS
             </button>
             
-            <button class="action-btn" onclick="openTradeModal('close_position')">
-                <div class="btn-icon">❌</div>
-                Close Position
-            </button>
-            
             <button class="action-btn" onclick="exportData()">
                 <div class="btn-icon">📤</div>
                 Export Data
@@ -401,31 +482,7 @@
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h3 id="modalTitle">Log Trade</h3>
             <form id="tradeForm">
-                <label>Trade Date:</label>
-                <input type="date" id="tradeDate" required>
-                
-                <label>Action:</label>
-                <select id="tradeAction" required>
-                    <option value="sell">Sell Call</option>
-                    <option value="buy_to_close">Buy to Close</option>
-                    <option value="roll_up">Roll Up</option>
-                    <option value="roll_down">Roll Down</option>
-                    <option value="roll_out">Roll Out</option>
-                </select>
-                
-                <label>Strike Price:</label>
-                <input type="number" id="strikePrice" step="0.01" placeholder="590.00" required>
-                
-                <label>Premium ($ amount):</label>
-                <input type="number" id="premium" step="0.01" placeholder="550" required>
-                
-                <label>Expiry Date:</label>
-                <input type="date" id="expiryDate">
-                
-                <label>Notes:</label>
-                <input type="text" id="tradeNotes" placeholder="Optional notes">
-                
-                <button type="submit" class="submit-btn">Log Trade</button>
+                <!-- Dynamic form content inserted by JavaScript -->
             </form>
         </div>
     </div>
@@ -441,13 +498,12 @@
         let currentPosition = null;
         let marketData = null;
         let performanceData = null;
+        let stockPositions = [];
+        let pendingAssignment = null;
         
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboard();
-            
-            // Set today's date as default
-            document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
         });
         
         async function loadDashboard() {
@@ -457,7 +513,9 @@
                     loadCurrentPosition(),
                     loadMarketData(),
                     loadPerformanceData(),
-                    loadRecentTrades()
+                    loadRecentTrades(),
+                    checkForAssignments(),
+                    loadStockPositions()
                 ]);
                 updateDisplay();
                 document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
@@ -475,45 +533,47 @@
                 .eq('status', 'active')
                 .single();
             
-            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+            if (error && error.code !== 'PGRST116') {
                 throw error;
             }
             
             currentPosition = data;
             
-            // Load current short call from recent trades
             if (currentPosition) {
                 await loadCurrentShortCall();
             }
         }
         
         async function loadCurrentShortCall() {
-            // Find most recent sell call trade that hasn't been closed
             const { data: recentSells, error } = await supabase
                 .from('trades')
                 .select('*')
-                .eq('action', 'sell')
+                .in('action', ['sell', 'roll_call'])
                 .order('trade_date', { ascending: false })
-                .limit(5);
+                .limit(10);
             
-            if (error) {
-                console.log('Error loading short calls:', error);
-                return;
-            }
+            if (error) return;
             
-            // Find most recent sell that hasn't been closed
+            // Find most recent sell that hasn't been closed or assigned
             for (const sell of recentSells) {
+                // Check if this trade was closed
                 const { data: closes } = await supabase
                     .from('trades')
                     .select('*')
                     .eq('action', 'buy_to_close')
                     .gte('trade_date', sell.trade_date)
-                    .order('trade_date', { ascending: false })
                     .limit(1);
                 
-                if (!closes || closes.length === 0) {
-                    // This sell hasn't been closed yet
+                // Check if this trade was assigned
+                const { data: assignments } = await supabase
+                    .from('assignments')
+                    .select('*')
+                    .eq('original_trade_id', sell.id)
+                    .limit(1);
+                
+                if ((!closes || closes.length === 0) && (!assignments || assignments.length === 0)) {
                     currentPosition.current_short_call = {
+                        id: sell.id,
                         strike: sell.strike,
                         premium_collected: sell.premium,
                         expiry: sell.expiry,
@@ -524,9 +584,128 @@
             }
         }
         
+        async function loadStockPositions() {
+            const { data, error } = await supabase
+                .from('stock_positions')
+                .select('*')
+                .eq('status', 'active');
+            
+            if (error) {
+                console.log('Stock positions table may not exist yet');
+                return;
+            }
+            
+            stockPositions = data || [];
+        }
+        
+        async function checkForAssignments() {
+            if (!currentPosition?.current_short_call) return;
+            
+            const shortCall = currentPosition.current_short_call;
+            const expiry = new Date(shortCall.expiry);
+            const now = new Date();
+            
+            // Check if call expired and was ITM
+            if (expiry < now && !marketData) {
+                await loadMarketData();
+            }
+            
+            if (expiry < now) {
+                // Get SPY price at expiry (approximation using current price)
+                const estimatedExpiryPrice = marketData.price;
+                
+                if (estimatedExpiryPrice > shortCall.strike) {
+                    // Call was ITM at expiry - need resolution
+                    pendingAssignment = {
+                        tradeId: shortCall.id,
+                        strike: shortCall.strike,
+                        expiryPrice: estimatedExpiryPrice,
+                        itmAmount: estimatedExpiryPrice - shortCall.strike
+                    };
+                    
+                    document.getElementById('assignmentMessage').textContent = 
+                        `Short call ${shortCall.strike} expired ITM (SPY ~$${estimatedExpiryPrice.toFixed(2)}). Please specify what happened.`;
+                    document.getElementById('assignmentAlert').style.display = 'block';
+                }
+            }
+        }
+        
+        async function resolveAssignment(assignmentType) {
+            if (!pendingAssignment) return;
+            
+            try {
+                const assignment = pendingAssignment;
+                
+                // Log assignment event
+                const { data: assignmentRecord, error: assignmentError } = await supabase
+                    .from('assignments')
+                    .insert([{
+                        assignment_date: new Date().toISOString().split('T')[0],
+                        assignment_type: assignmentType,
+                        original_trade_id: assignment.tradeId,
+                        spy_price_at_assignment: assignment.expiryPrice,
+                        pnl_impact: calculateAssignmentPnL(assignmentType, assignment),
+                        notes: `${assignmentType.replace('_', ' ')} - Strike: ${assignment.strike}`
+                    }])
+                    .select();
+                
+                if (assignmentError) throw assignmentError;
+                
+                if (assignmentType === 'called_away') {
+                    // Close LEAPS position
+                    await supabase
+                        .from('positions')
+                        .update({ 
+                            status: 'called_away',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', currentPosition.id);
+                    
+                    showAlert('LEAPS position marked as called away. You can now open a new LEAPS position.', 'success');
+                    
+                } else if (assignmentType === 'assigned_stock') {
+                    // Create short stock position
+                    await supabase
+                        .from('stock_positions')
+                        .insert([{
+                            symbol: 'SPY',
+                            shares: -100,
+                            avg_cost: assignment.strike,
+                            current_value: assignment.expiryPrice * 100,
+                            assignment_source_trade_id: assignment.tradeId,
+                            status: 'active'
+                        }]);
+                    
+                    showAlert('Short stock position created. Cover on Monday and sell new call.', 'warning');
+                    
+                } else if (assignmentType === 'expired_worthless') {
+                    // Nothing to do - call expired OTM (this shouldn't happen if ITM detected)
+                    showAlert('Call marked as expired worthless.', 'success');
+                }
+                
+                // Clear assignment alert
+                document.getElementById('assignmentAlert').style.display = 'none';
+                pendingAssignment = null;
+                
+                // Reload dashboard
+                await loadDashboard();
+                
+            } catch (error) {
+                showAlert('Failed to resolve assignment: ' + error.message, 'error');
+            }
+        }
+        
+        function calculateAssignmentPnL(assignmentType, assignment) {
+            if (assignmentType === 'called_away') {
+                return assignment.itmAmount * 100; // Loss on called away LEAPS
+            } else if (assignmentType === 'assigned_stock') {
+                return 0; // P&L determined when stock is closed
+            }
+            return 0;
+        }
+        
         async function loadMarketData() {
             try {
-                // Free Alpha Vantage API (5 calls/minute limit)
                 const API_KEY = '7R1UDD9CA7EDG6WN';
                 const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=${API_KEY}`);
                 const data = await response.json();
@@ -546,7 +725,6 @@
                 }
             } catch (error) {
                 console.log('Using fallback market data');
-                // Fallback to current market data
                 marketData = {
                     price: 590.05,
                     change: 2.34,
@@ -559,7 +737,6 @@
         }
         
         async function loadPerformanceData() {
-            // Calculate from trades
             const { data: trades, error } = await supabase
                 .from('trades')
                 .select('*')
@@ -574,8 +751,10 @@
             
             if (trades) {
                 trades.forEach(trade => {
-                    if (trade.action === 'sell') {
+                    if (trade.action === 'sell' || trade.action === 'roll_call') {
                         totalPremium += parseFloat(trade.premium || 0);
+                    } else if (trade.action === 'buy_to_close') {
+                        totalPremium -= parseFloat(trade.premium || 0);
                     }
                     
                     const tradeDate = new Date(trade.trade_date);
@@ -601,7 +780,7 @@
                 .from('trades')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(3);
+                .limit(5);
             
             if (error) throw error;
             
@@ -614,13 +793,136 @@
             
             tradesContainer.innerHTML = data.map(trade => {
                 const date = new Date(trade.trade_date).toLocaleDateString();
-                const premium = trade.premium ? `$${parseFloat(trade.premium).toFixed(0)}` : '';
+                const premium = trade.premium ? `${parseFloat(trade.premium).toFixed(0)}` : '';
                 const strike = trade.strike ? `${trade.strike}C` : '';
                 
                 return `<div style="margin-bottom: 5px;">
                     ${getActionIcon(trade.action)} ${date}: ${trade.action} ${strike} ${premium}
                 </div>`;
             }).join('');
+        }
+        
+        function getActionIcon(action) {
+            const icons = {
+                'sell': '✅',
+                'buy_to_close': '❌',
+                'roll_up': '⬆️',
+                'roll_down': '⬇️',
+                'roll_out': '➡️',
+                'roll_call': '🔄',
+                'assigned_stock': '📉',
+                'called_away': '📞'
+            };
+            return icons[action] || '📝';
+        }
+        
+        function updateDisplay() {
+            // Update performance
+            if (performanceData) {
+                document.getElementById('totalPremium').textContent = `${performanceData.totalPremium.toFixed(0)}`;
+                document.getElementById('leapsValue').textContent = `${performanceData.currentValue.toFixed(0)}`;
+                
+                const netPnL = document.getElementById('netPnL');
+                netPnL.textContent = `${performanceData.netPnL >= 0 ? '+' : ''}${performanceData.netPnL.toFixed(0)}`;
+                netPnL.className = `status-value ${performanceData.netPnL >= 0 ? 'positive' : 'negative'}`;
+                
+                document.getElementById('tradesCount').textContent = performanceData.tradesThisMonth;
+            }
+            
+            // Update market data
+            if (marketData) {
+                const spyPrice = document.getElementById('spyPrice');
+                spyPrice.textContent = `${marketData.price.toFixed(2)}`;
+                spyPrice.className = `status-value ${marketData.change >= 0 ? 'positive' : 'negative'}`;
+            }
+            
+            // Update position data
+            if (currentPosition) {
+                // LEAPS data
+                document.getElementById('leapsStrike').textContent = `${currentPosition.leaps_strike}`;
+                document.getElementById('leapsCurrentValue').textContent = `${(currentPosition.current_value || 0).toFixed(0)}`;
+                document.getElementById('leapsDelta').textContent = `${currentPosition.current_delta}%`;
+                
+                // Calculate and display LEAPS health
+                const health = calculateLeapsHealth();
+                const healthElement = document.getElementById('leapsHealth');
+                healthElement.textContent = health.display;
+                healthElement.className = `status-value ${health.color}`;
+                
+                // Calculate DTE
+                const dte = calculateDTE(currentPosition.leaps_expiry);
+                const dteElement = document.getElementById('leapsDTE');
+                dteElement.textContent = `${dte} days`;
+                dteElement.className = `status-value ${dte < 90 ? 'warning' : dte < 120 ? 'neutral' : 'positive'}`;
+                
+                // Short call data
+                if (currentPosition.current_short_call) {
+                    const shortCall = currentPosition.current_short_call;
+                    const shortDTE = calculateDTE(shortCall.expiry);
+                    const currentShortValue = estimateShortCallValue(shortCall.strike, shortDTE);
+                    const shortPnL = (shortCall.premium_collected || 0) - currentShortValue;
+                    
+                    document.getElementById('shortStrike').textContent = `${shortCall.strike}`;
+                    document.getElementById('shortPremium').textContent = `${(shortCall.premium_collected || 0).toFixed(0)}`;
+                    document.getElementById('shortCurrentValue').textContent = `${currentShortValue.toFixed(0)}`;
+                    
+                    const shortPnLElement = document.getElementById('shortPnL');
+                    shortPnLElement.textContent = `${shortPnL >= 0 ? '+' : ''}${shortPnL.toFixed(0)}`;
+                    shortPnLElement.className = `status-value ${shortPnL >= 0 ? 'positive' : 'negative'}`;
+                    
+                    const dtElement = document.getElementById('shortDTE');
+                    dtElement.textContent = `${shortDTE} days`;
+                    dtElement.className = `status-value ${shortDTE <= 2 ? 'warning' : 'positive'}`;
+                } else {
+                    // No active short call
+                    document.getElementById('shortStrike').textContent = 'None';
+                    document.getElementById('shortPremium').textContent = '$0';
+                    document.getElementById('shortCurrentValue').textContent = '$0';
+                    document.getElementById('shortPnL').textContent = '$0';
+                    document.getElementById('shortDTE').textContent = '-';
+                }
+            }
+            
+            // Update stock positions display
+            updateStockPositionDisplay();
+            
+            // Update market state and recommendations
+            updateMarketState();
+        }
+        
+        function updateStockPositionDisplay() {
+            const stockCard = document.getElementById('stockPositionCard');
+            
+            if (stockPositions.length > 0) {
+                const stockPos = stockPositions[0]; // Assuming single stock position
+                const currentPrice = marketData ? marketData.price : 590;
+                const unrealizedPnL = (parseFloat(stockPos.avg_cost) - currentPrice) * Math.abs(stockPos.shares);
+                
+                document.getElementById('stockShares').textContent = `${stockPos.shares} ${stockPos.symbol}`;
+                document.getElementById('assignmentPrice').textContent = `${parseFloat(stockPos.avg_cost).toFixed(2)}`;
+                document.getElementById('currentStockPrice').textContent = `${currentPrice.toFixed(2)}`;
+                
+                const stockPnLElement = document.getElementById('stockPnL');
+                stockPnLElement.textContent = `${unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}`;
+                stockPnLElement.className = `status-value ${unrealizedPnL >= 0 ? 'positive' : 'negative'}`;
+                
+                stockCard.style.display = 'block';
+            } else {
+                stockCard.style.display = 'none';
+            }
+        }
+        
+        function estimateShortCallValue(strike, daysToExpiry) {
+            if (!marketData || daysToExpiry <= 0) return 0;
+            
+            const spyPrice = marketData.price;
+            const intrinsicValue = Math.max(0, spyPrice - strike);
+            
+            // Simple time value estimation
+            const timeValueFactor = Math.max(0.1, daysToExpiry / 7);
+            const timeValue = timeValueFactor * 2;
+            
+            return intrinsicValue + timeValue;
         }
         
         function calculateLeapsHealth() {
@@ -632,7 +934,6 @@
             const dte = calculateDTE(currentPosition.leaps_expiry);
             const cushion = marketData.price - currentPosition.leaps_strike;
             
-            // Health scoring
             let score = 0;
             if (delta > 80) score += 40;
             else if (delta > 75) score += 30;
@@ -647,7 +948,6 @@
             else if (cushion > 20) score += 20;
             else score += 10;
             
-            // Determine health status
             if (score > 70) {
                 return { display: '🟢 GOOD', color: 'positive' };
             } else if (score > 50) {
@@ -662,49 +962,6 @@
             const now = new Date();
             const diffTime = expiry - now;
             return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-        
-        function updateDisplay() {
-            // Update performance
-            if (performanceData) {
-                document.getElementById('totalPremium').textContent = `$${performanceData.totalPremium.toFixed(0)}`;
-                document.getElementById('leapsValue').textContent = `$${performanceData.currentValue.toFixed(0)}`;
-                
-                const netPnL = document.getElementById('netPnL');
-                netPnL.textContent = `${performanceData.netPnL >= 0 ? '+' : ''}$${performanceData.netPnL.toFixed(0)}`;
-                netPnL.className = `status-value ${performanceData.netPnL >= 0 ? 'positive' : 'negative'}`;
-                
-                document.getElementById('tradesCount').textContent = performanceData.tradesThisMonth;
-            }
-            
-            // Update market data
-            if (marketData) {
-                const spyPrice = document.getElementById('spyPrice');
-                spyPrice.textContent = `$${marketData.price.toFixed(2)}`;
-                spyPrice.className = `status-value ${marketData.change >= 0 ? 'positive' : 'negative'}`;
-            }
-            
-            // Update position data
-            if (currentPosition) {
-                document.getElementById('leapsStrike').textContent = `${currentPosition.leaps_strike}`;
-                
-                // Calculate and display LEAPS health
-                const health = calculateLeapsHealth();
-                const healthElement = document.getElementById('leapsHealth');
-                healthElement.textContent = health.display;
-                healthElement.className = `status-value ${health.color}`;
-                
-                // Calculate DTE
-                const dte = calculateDTE(currentPosition.leaps_expiry);
-                const dteElement = document.getElementById('leapsDTE');
-                dteElement.textContent = `${dte} days`;
-                dteElement.className = `status-value ${dte < 90 ? 'warning' : dte < 120 ? 'neutral' : 'positive'}`;
-                
-                document.getElementById('leapsDelta').textContent = `${currentPosition.current_delta}%`;
-            }
-            
-            // Update market state and recommendations
-            updateMarketState();
         }
         
         function updateMarketState() {
@@ -729,9 +986,8 @@
             if (!marketData) return "Market data loading...";
             
             const price = marketData.price;
-            // Rough EMA estimates (would need historical data for exact calculation)
-            const ema21 = price * 0.99; // Simplified
-            const ema50 = price * 0.97; // Simplified
+            const ema21 = price * 0.99;
+            const ema50 = price * 0.97;
             
             const ema21Status = price > ema21 ? "🟢" : "🔴";
             const ema50Status = price > ema50 ? "🟢" : "🔴";
@@ -747,7 +1003,6 @@
         function analyzeMarketState() {
             if (!marketData || !currentPosition) return "ANALYZING";
             
-            // Simple market state analysis
             const change = marketData.change;
             const price = marketData.price;
             const leapsStrike = currentPosition.leaps_strike;
@@ -770,17 +1025,17 @@
                 case "VERY STRONG BULL":
                     return {
                         strike: Math.round(price + 2),
-                        text: `Sell 2 OTM at $${Math.round(price + 2)} to capture upside`
+                        text: `Sell 2 OTM at ${Math.round(price + 2)} to capture upside`
                     };
                 case "STRONG BULL":
                     return {
                         strike: Math.round(price),
-                        text: `Sell ATM at $${Math.round(price)} for maximum extrinsic`
+                        text: `Sell ATM at ${Math.round(price)} for maximum extrinsic`
                     };
                 default:
                     return {
                         strike: Math.round(price - 1),
-                        text: `Sell 1 ITM at $${Math.round(price - 1)} for protection`
+                        text: `Sell 1 ITM at ${Math.round(price - 1)} for protection`
                     };
             }
         }
@@ -801,6 +1056,7 @@
             showLoading(true);
             try {
                 await loadCurrentPosition();
+                await checkForAssignments();
                 updateDisplay();
                 showAlert('Position checked!', 'success');
             } catch (error) {
@@ -810,12 +1066,129 @@
             }
         }
         
+        async function updatePositionValues() {
+            const button = document.querySelector('button[onclick="updatePositionValues()"]');
+            button.textContent = '⏳ Updating...';
+            button.disabled = true;
+            
+            try {
+                const lastUpdateTime = localStorage.getItem('lastAPIUpdate');
+                const now = Date.now();
+                
+                if (lastUpdateTime && (now - parseInt(lastUpdateTime)) < 5 * 60 * 1000) {
+                    const minutesLeft = Math.ceil((5 * 60 * 1000 - (now - parseInt(lastUpdateTime))) / 60000);
+                    showAlert(`Please wait ${minutesLeft} more minutes before API update`, 'warning');
+                    return;
+                }
+                
+                if (!currentPosition) {
+                    throw new Error('No active position');
+                }
+                
+                await loadMarketData();
+                
+                const POLYGON_API_KEY = 'wfpt139nvZFbUkwpoOXI1Z5Zv98aIwhQ';
+                const strike = currentPosition.leaps_strike;
+                const expiry = currentPosition.leaps_expiry;
+                
+                const formattedExpiry = expiry.replace(/-/g, '');
+                const strikeFormatted = (strike * 1000).toString();
+                
+                const optionsTicker = `O:SPY${formattedExpiry}C${strikeFormatted}`;
+                
+                const response = await fetch(`https://api.polygon.io/v2/last/trade/${optionsTicker}?apikey=${POLYGON_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.results && data.results.p) {
+                    const currentValue = data.results.p * 100;
+                    
+                    const { error } = await supabase
+                        .from('positions')
+                        .update({ 
+                            current_value: currentValue,
+                            updated_at: new Date().toISOString() 
+                        })
+                        .eq('id', currentPosition.id);
+                    
+                    if (error) throw error;
+                    
+                    currentPosition.current_value = currentValue;
+                    
+                    localStorage.setItem('lastAPIUpdate', now.toString());
+                    showAlert(`Position updated via API - LEAPS: ${currentValue.toFixed(0)}`, 'success');
+                } else {
+                    throw new Error('No options data available');
+                }
+                
+                updateDisplay();
+                
+                const updateTime = new Date();
+                document.getElementById('lastValueUpdate').textContent = `Last updated: ${updateTime.toLocaleTimeString()}`;
+                
+            } catch (error) {
+                showAlert('API update failed: ' + error.message + '. Use Manual Update instead.', 'error');
+            } finally {
+                button.textContent = '📊 Update Live Values';
+                button.disabled = false;
+            }
+        }
+        
+        async function updateTrueValues() {
+            if (!currentPosition) {
+                showAlert('No active position found', 'error');
+                return;
+            }
+            
+            const leapsValue = prompt(`Enter current LEAPS value from broker:\nCurrent: ${(currentPosition.current_value || 0).toFixed(0)}`);
+            
+            if (leapsValue && !isNaN(leapsValue)) {
+                const newLeapsValue = parseFloat(leapsValue);
+                
+                const { error } = await supabase
+                    .from('positions')
+                    .update({ 
+                        current_value: newLeapsValue,
+                        updated_at: new Date().toISOString() 
+                    })
+                    .eq('id', currentPosition.id);
+                
+                if (error) {
+                    showAlert('Failed to update LEAPS value: ' + error.message, 'error');
+                    return;
+                }
+                
+                currentPosition.current_value = newLeapsValue;
+                
+                if (currentPosition.current_short_call) {
+                    const shortValue = prompt(`Enter current short call value from broker:\nStrike: ${currentPosition.current_short_call.strike}`);
+                    
+                    if (shortValue && !isNaN(shortValue)) {
+                        const newShortValue = parseFloat(shortValue);
+                        const shortPnL = (currentPosition.current_short_call.premium_collected || 0) - newShortValue;
+                        
+                        document.getElementById('shortCurrentValue').textContent = `${newShortValue.toFixed(0)}`;
+                        
+                        const shortPnLElement = document.getElementById('shortPnL');
+                        shortPnLElement.textContent = `${shortPnL >= 0 ? '+' : ''}${shortPnL.toFixed(0)}`;
+                        shortPnLElement.className = `status-value ${shortPnL >= 0 ? 'positive' : 'negative'}`;
+                    }
+                }
+                
+                const now = new Date();
+                document.getElementById('lastValueUpdate').textContent = `Manual update: ${now.toLocaleTimeString()}`;
+                
+                showAlert('Position values updated manually', 'success');
+                
+                await loadPerformanceData();
+                updateDisplay();
+            }
+        }
+        
         function openTradeModal(tradeType) {
             const modal = document.getElementById('tradeModal');
             const title = document.getElementById('modalTitle');
             const form = document.getElementById('tradeForm');
             
-            // Clear existing form
             form.innerHTML = '';
             
             if (tradeType === 'roll_call') {
@@ -860,20 +1233,18 @@
                     <button type="submit" class="submit-btn">Log Roll Transaction</button>
                 `;
                 
-                // Add event listeners for live calculation
                 setTimeout(() => {
                     const checkbox = document.getElementById('sellNewCall');
                     const newCallSection = document.getElementById('newCallSection');
-                    const closeCost = document.getElementById('closeCost');
-                    const newPremium = document.getElementById('newPremium');
-                    const netCredit = document.getElementById('netCredit');
                     
-                    // Toggle new call section
                     checkbox.addEventListener('change', function() {
                         newCallSection.style.display = this.checked ? 'block' : 'none';
                     });
                     
-                    // Calculate net credit live
+                    const closeCost = document.getElementById('closeCost');
+                    const newPremium = document.getElementById('newPremium');
+                    const netCredit = document.getElementById('netCredit');
+                    
                     function updateNetCredit() {
                         const close = parseFloat(closeCost.value) || 0;
                         const premium = parseFloat(newPremium.value) || 0;
@@ -884,7 +1255,73 @@
                     
                     closeCost.addEventListener('input', updateNetCredit);
                     newPremium.addEventListener('input', updateNetCredit);
+                    
+                    const nextFriday = getNextFriday();
+                    document.getElementById('newExpiry').value = nextFriday.toISOString().split('T')[0];
                 }, 100);
+                
+            } else if (tradeType === 'close_stock_sell_call') {
+                title.textContent = 'Close Stock & Sell New Call';
+                form.innerHTML = `
+                    <label>Trade Date:</label>
+                    <input type="date" id="tradeDate" required>
+                    
+                    <h4 style="margin: 15px 0 10px 0; color: #22c55e;">Close Short Stock</h4>
+                    <label>Cover Price ($):</label>
+                    <input type="number" id="coverPrice" step="0.01" placeholder="592.00" required>
+                    
+                    <label>Shares Covered:</label>
+                    <input type="number" id="sharesCovered" value="100" required>
+                    
+                    <h4 style="margin: 15px 0 10px 0; color: #22c55e;">Sell New Call</h4>
+                    <label>Strike:</label>
+                    <input type="number" id="newStrike" step="0.01" placeholder="592.00" required>
+                    
+                    <label>Premium Collected ($):</label>
+                    <input type="number" id="newPremium" step="0.01" placeholder="580" required>
+                    
+                    <label>Expiry:</label>
+                    <input type="date" id="newExpiry" required>
+                    
+                    <div style="margin: 10px 0; padding: 10px; background: rgba(34, 197, 94, 0.1); border-radius: 6px;">
+                        <strong>Stock P&L:</strong> $<span id="stockPnL">0</span><br>
+                        <strong>Total Net:</strong> $<span id="totalNet">0</span>
+                    </div>
+                    
+                    <label>Notes:</label>
+                    <input type="text" id="tradeNotes" placeholder="Stock cover + new call">
+                    
+                    <button type="submit" class="submit-btn">Log Stock Close & Call Sale</button>
+                `;
+                
+                setTimeout(() => {
+                    const coverPrice = document.getElementById('coverPrice');
+                    const newPremium = document.getElementById('newPremium');
+                    const stockPnLSpan = document.getElementById('stockPnL');
+                    const totalNetSpan = document.getElementById('totalNet');
+                    
+                    function updateCalculations() {
+                        const cover = parseFloat(coverPrice.value) || 0;
+                        const premium = parseFloat(newPremium.value) || 0;
+                        const assignmentPrice = stockPositions[0] ? parseFloat(stockPositions[0].avg_cost) : 595;
+                        
+                        const stockPnL = (assignmentPrice - cover) * 100;
+                        const totalNet = stockPnL + premium;
+                        
+                        stockPnLSpan.textContent = stockPnL.toFixed(0);
+                        stockPnLSpan.style.color = stockPnL >= 0 ? '#22c55e' : '#ef4444';
+                        
+                        totalNetSpan.textContent = totalNet.toFixed(0);
+                        totalNetSpan.style.color = totalNet >= 0 ? '#22c55e' : '#ef4444';
+                    }
+                    
+                    coverPrice.addEventListener('input', updateCalculations);
+                    newPremium.addEventListener('input', updateCalculations);
+                    
+                    const nextFriday = getNextFriday();
+                    document.getElementById('newExpiry').value = nextFriday.toISOString().split('T')[0];
+                }, 100);
+                
             } else if (tradeType === 'open_leaps') {
                 title.textContent = 'Open New LEAPS Position';
                 form.innerHTML = `
@@ -915,7 +1352,6 @@
                     <button type="submit" class="submit-btn">Create LEAPS Position</button>
                 `;
             } else {
-                // Standard trade form
                 title.textContent = 'Log Trade';
                 form.innerHTML = `
                     <label>Trade Date:</label>
@@ -946,17 +1382,9 @@
                 `;
             }
             
-            // Set today's date as default
             const dateInput = form.querySelector('#tradeDate');
             if (dateInput) {
                 dateInput.value = new Date().toISOString().split('T')[0];
-            }
-            
-            // Set next Friday as default for new expiry
-            const expiryInput = form.querySelector('#newExpiry, #expiryDate');
-            if (expiryInput && tradeType === 'friday_roll') {
-                const nextFriday = getNextFriday();
-                expiryInput.value = nextFriday.toISOString().split('T')[0];
             }
             
             modal.style.display = 'block';
@@ -965,101 +1393,10 @@
         function getNextFriday() {
             const today = new Date();
             const dayOfWeek = today.getDay();
-            const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // If today is Friday, get next Friday
+            const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
             const nextFriday = new Date(today);
             nextFriday.setDate(today.getDate() + daysUntilFriday);
             return nextFriday;
-        }
-        
-        async function updateLeapsValue() {
-            const updateBtn = document.querySelector('button[onclick="updateLeapsValue()"]');
-            const lastUpdate = document.getElementById('lastValueUpdate');
-            
-            // Check rate limiting (30 min minimum between updates)
-            const lastUpdateTime = localStorage.getItem('lastLeapsUpdate');
-            const now = Date.now();
-            
-            if (lastUpdateTime && (now - parseInt(lastUpdateTime)) < 30 * 60 * 1000) {
-                const minutesLeft = Math.ceil((30 * 60 * 1000 - (now - parseInt(lastUpdateTime))) / 60000);
-                showAlert(`Please wait ${minutesLeft} more minutes before updating`, 'warning');
-                return;
-            }
-            
-            updateBtn.textContent = '⏳ Fetching...';
-            updateBtn.disabled = true;
-            
-            try {
-                if (!currentPosition) {
-                    throw new Error('No active position found');
-                }
-                
-                // Polygon.io free tier API call for options data
-                const POLYGON_API_KEY = 'YOUR_POLYGON_KEY'; // You'd need to sign up
-                const strike = currentPosition.leaps_strike;
-                const expiry = currentPosition.leaps_expiry;
-                
-                // Format expiry for API (YYYY-MM-DD to YYYYMMDD)
-                const formattedExpiry = expiry.replace(/-/g, '');
-                const strikeFormatted = (strike * 1000).toString(); // Strike in millidollars
-                
-                // Construct options ticker: O:SPY{expiry}C{strike}
-                const optionsTicker = `O:SPY${formattedExpiry}C${strikeFormatted}`;
-                
-                const response = await fetch(`https://api.polygon.io/v2/last/trade/${optionsTicker}?apikey=${POLYGON_API_KEY}`);
-                const data = await response.json();
-                
-                if (data.results && data.results.p) {
-                    const currentValue = data.results.p * 100; // Convert to dollars
-                    
-                    // Update database
-                    const { error } = await supabase
-                        .from('positions')
-                        .update({ current_value: currentValue, updated_at: new Date().toISOString() })
-                        .eq('id', currentPosition.id);
-                    
-                    if (error) throw error;
-                    
-                    // Update display
-                    currentPosition.current_value = currentValue;
-                    document.getElementById('leapsCurrentValue').textContent = `${currentValue.toFixed(0)}`;
-                    
-                    localStorage.setItem('lastLeapsUpdate', now.toString());
-                    lastUpdate.textContent = `Last updated: Just now`;
-                    
-                    showAlert(`LEAPS value updated: ${currentValue.toFixed(0)}`, 'success');
-                    
-                } else {
-                    throw new Error('Invalid API response');
-                }
-                
-            } catch (error) {
-                showAlert('Failed to fetch LEAPS value: ' + error.message, 'error');
-                
-                // Fallback to manual entry
-                const manualValue = prompt('Enter current LEAPS value from your broker:');
-                if (manualValue && !isNaN(manualValue)) {
-                    const value = parseFloat(manualValue);
-                    
-                    // Update database
-                    await supabase
-                        .from('positions')
-                        .update({ current_value: value, updated_at: new Date().toISOString() })
-                        .eq('id', currentPosition.id);
-                    
-                    // Update display
-                    currentPosition.current_value = value;
-                    document.getElementById('leapsCurrentValue').textContent = `${value.toFixed(0)}`;
-                    
-                    localStorage.setItem('lastLeapsUpdate', now.toString());
-                    lastUpdate.textContent = `Last updated: Manual entry`;
-                    
-                    showAlert(`LEAPS value updated manually: ${value.toFixed(0)}`, 'success');
-                }
-                
-            } finally {
-                updateBtn.textContent = '🔄 Update LEAPS Value';
-                updateBtn.disabled = false;
-            }
         }
         
         function closeModal() {
@@ -1070,6 +1407,114 @@
         document.getElementById('tradeForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            try {
+                const formType = document.getElementById('modalTitle').textContent;
+                
+                if (formType.includes('Roll Call Position')) {
+                    await handleRollCallSubmission();
+                } else if (formType.includes('Close Stock')) {
+                    await handleStockCloseSubmission();
+                } else if (formType.includes('Open New LEAPS')) {
+                    await handleNewLeapsSubmission();
+                } else {
+                    await handleStandardTradeSubmission();
+                }
+                
+                closeModal();
+                await loadDashboard();
+                
+            } catch (error) {
+                showAlert('Failed to log trade: ' + error.message, 'error');
+            }
+        });
+        
+        async function handleRollCallSubmission() {
+            const closeStrike = document.getElementById('closeStrike').value;
+            const closeCost = parseFloat(document.getElementById('closeCost').value) || 0;
+            const sellNew = document.getElementById('sellNewCall').checked;
+            
+            // Log close transaction
+            if (closeStrike && closeCost > 0) {
+                await supabase.from('trades').insert([{
+                    trade_date: document.getElementById('tradeDate').value,
+                    action: 'buy_to_close',
+                    strike: parseFloat(closeStrike),
+                    premium: closeCost,
+                    notes: 'Close as part of roll'
+                }]);
+            }
+            
+            // Log new call if selling
+            if (sellNew && document.getElementById('newStrike').value) {
+                await supabase.from('trades').insert([{
+                    trade_date: document.getElementById('tradeDate').value,
+                    action: 'sell',
+                    strike: parseFloat(document.getElementById('newStrike').value),
+                    premium: parseFloat(document.getElementById('newPremium').value),
+                    expiry: document.getElementById('newExpiry').value,
+                    notes: document.getElementById('tradeNotes').value || 'New call as part of roll'
+                }]);
+            }
+            
+            showAlert('Roll transaction logged successfully!', 'success');
+        }
+        
+        async function handleStockCloseSubmission() {
+            const coverPrice = parseFloat(document.getElementById('coverPrice').value);
+            const sharesCovered = parseFloat(document.getElementById('sharesCovered').value);
+            const newStrike = parseFloat(document.getElementById('newStrike').value);
+            const newPremium = parseFloat(document.getElementById('newPremium').value);
+            
+            // Close stock position
+            await supabase.from('stock_positions')
+                .update({ status: 'closed' })
+                .eq('status', 'active');
+            
+            // Log stock cover trade
+            await supabase.from('trades').insert([{
+                trade_date: document.getElementById('tradeDate').value,
+                action: 'cover_stock',
+                strike: coverPrice,
+                premium: 0,
+                notes: `Covered ${sharesCovered} shares at ${coverPrice}`
+            }]);
+            
+            // Log new call sale
+            await supabase.from('trades').insert([{
+                trade_date: document.getElementById('tradeDate').value,
+                action: 'sell',
+                strike: newStrike,
+                premium: newPremium,
+                expiry: document.getElementById('newExpiry').value,
+                notes: document.getElementById('tradeNotes').value || 'New call after stock cover'
+            }]);
+            
+            showAlert('Stock closed and new call logged!', 'success');
+        }
+        
+        async function handleNewLeapsSubmission() {
+            const positionData = {
+                position_name: document.getElementById('positionName').value,
+                symbol: document.getElementById('symbol').value,
+                leaps_strike: parseFloat(document.getElementById('strikePrice').value),
+                leaps_expiry: document.getElementById('expiryDate').value,
+                leaps_cost_basis: parseFloat(document.getElementById('costBasis').value),
+                current_value: parseFloat(document.getElementById('currentValue').value),
+                current_delta: parseFloat(document.getElementById('currentDelta').value),
+                contracts: parseFloat(document.getElementById('contracts').value),
+                status: 'active'
+            };
+            
+            const { error } = await supabase
+                .from('positions')
+                .insert([positionData]);
+            
+            if (error) throw error;
+            
+            showAlert('New LEAPS position created!', 'success');
+        }
+        
+        async function handleStandardTradeSubmission() {
             const tradeData = {
                 trade_date: document.getElementById('tradeDate').value,
                 action: document.getElementById('tradeAction').value,
@@ -1079,27 +1524,14 @@
                 notes: document.getElementById('tradeNotes').value || null
             };
             
-            try {
-                const { error } = await supabase
-                    .from('trades')
-                    .insert([tradeData]);
-                
-                if (error) throw error;
-                
-                showAlert('Trade logged successfully!', 'success');
-                closeModal();
-                
-                // Refresh data
-                await loadDashboard();
-                
-                // Reset form
-                document.getElementById('tradeForm').reset();
-                document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
-                
-            } catch (error) {
-                showAlert('Failed to log trade: ' + error.message, 'error');
-            }
-        });
+            const { error } = await supabase
+                .from('trades')
+                .insert([tradeData]);
+            
+            if (error) throw error;
+            
+            showAlert('Trade logged successfully!', 'success');
+        }
         
         async function exportData() {
             try {
@@ -1115,7 +1547,6 @@
                     return;
                 }
                 
-                // Convert to CSV
                 const headers = ['Date', 'Action', 'Strike', 'Premium', 'Expiry', 'Notes'];
                 const csvContent = [
                     headers.join(','),
@@ -1125,11 +1556,10 @@
                         trade.strike || '',
                         trade.premium || '',
                         trade.expiry || '',
-                        (trade.notes || '').replace(/,/g, ';') // Replace commas in notes
+                        (trade.notes || '').replace(/,/g, ';')
                     ].join(','))
                 ].join('\n');
                 
-                // Download file
                 const blob = new Blob([csvContent], { type: 'text/csv' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1151,7 +1581,7 @@
         
         function showAlert(message, type) {
             const alertDiv = document.createElement('div');
-            alertDiv.className = `alert ${type === 'success' ? 'success' : ''}`;
+            alertDiv.className = `alert ${type === 'success' ? 'success' : type === 'error' ? 'danger' : ''}`;
             alertDiv.textContent = message;
             alertDiv.style.position = 'fixed';
             alertDiv.style.top = '20px';
@@ -1176,9 +1606,9 @@
         }
         
         // Friday reminder
-        if (new Date().getDay() === 5) { // Friday
+        if (new Date().getDay() === 5) {
             setTimeout(() => {
-                showAlert('🔔 Friday Reminder: Check expiring positions!', 'warning');
+                showAlert('Friday Reminder: Check expiring positions!', 'warning');
             }, 2000);
         }
     </script>
