@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐢 Turtle Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .status-value {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .positive { color: #4ade80; }
+        .negative { color: #f87171; }
+        .warning { color: #fbbf24; }
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 12px;
+            padding: 20px 10px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .action-btn.primary {
+            background: rgba(34, 197, 94, 0.3);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+        }
+        
+        .action-btn.warning {
+            background: rgba(245, 158, 11, 0.3);
+            border: 1px solid rgba(245, 158, 11, 0.5);
+        }
+        
+        .btn-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .recommendations {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .recommendations h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .alert {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            color: black;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 350px;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading Screen -->
+        <div class="loading" id="loadingScreen">
+            <div class="spinner"></div>
+            <p>Loading turtle data...</p>
+        </div>
+        
+        <!-- Header -->
+        <div class="header">
+            <h1>🐢 Turtle Dashboard</h1>
+            <p id="lastUpdate">Loading...</p>
+        </div>
+        
+        <!-- Performance Summary -->
+        <div class="status-card">
+            <h3 style="margin-bottom: 15px; text-align: center;">💰 Performance Summary</h3>
+            <div class="status-row">
+                <span class="status-label">Total Premium Collected</span>
+                <span class="status-value positive" id="totalPremium">$0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Current LEAPS Value</span>
+                <span class="status-value" id="leapsValue">$0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Net P&L</span>
+                <span class="status-value" id="netPnL">$0</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Trades This Month</span>
+                <span class="status-value" id="tradesCount">0</span>
+            </div>
+        </div>
+        
+        <!-- Current Position -->
+        <div class="status-card">
+            <h3 style="margin-bottom: 15px;">📊 Current Position</h3>
+            <div class="status-row">
+                <span class="status-label">SPY Price</span>
+                <span class="status-value" id="spyPrice">Loading...</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">LEAPS Strike</span>
+                <span class="status-value" id="leapsStrike">$470</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">LEAPS Delta</span>
+                <span class="status-value positive" id="leapsDelta">87%</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Market State</span>
+                <span class="status-value" id="marketState">Analyzing...</span>
+            </div>
+        </div>
+        
+        <!-- Recommendations -->
+        <div class="recommendations">
+            <h3>🎯 Today's Recommendation</h3>
+            <div id="recommendationContent">
+                <div class="alert">
+                    Analyzing current market conditions...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="action-grid">
+            <button class="action-btn primary" onclick="runMorningUpdate()">
+                <div class="btn-icon">🌅</div>
+                Morning Update
+            </button>
+            
+            <button class="action-btn" onclick="checkPosition()">
+                <div class="btn-icon">📊</div>
+                Check Position
+            </button>
+            
+            <button class="action-btn primary" onclick="openTradeModal('sell_weekly')">
+                <div class="btn-icon">📅</div>
+                Sell Weekly Call
+            </button>
+            
+            <button class="action-btn warning" onclick="openTradeModal('roll_position')">
+                <div class="btn-icon">🔄</div>
+                Roll Position
+            </button>
+            
+            <button class="action-btn" onclick="openTradeModal('close_position')">
+                <div class="btn-icon">❌</div>
+                Close Position
+            </button>
+            
+            <button class="action-btn" onclick="exportData()">
+                <div class="btn-icon">📤</div>
+                Export Data
+            </button>
+        </div>
+        
+        <!-- Recent Trades -->
+        <div class="status-card">
+            <h3>📝 Recent Trades</h3>
+            <div id="recentTrades" style="font-size: 12px; margin-top: 10px;">
+                Loading trades...
+            </div>
+        </div>
+    </div>
+    
+    <!-- Trade Modal -->
+    <div id="tradeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Log Trade</h3>
+            <form id="tradeForm">
+                <label>Trade Date:</label>
+                <input type="date" id="tradeDate" required>
+                
+                <label>Action:</label>
+                <select id="tradeAction" required>
+                    <option value="sell">Sell Call</option>
+                    <option value="buy_to_close">Buy to Close</option>
+                    <option value="roll_up">Roll Up</option>
+                    <option value="roll_down">Roll Down</option>
+                    <option value="roll_out">Roll Out</option>
+                </select>
+                
+                <label>Strike Price:</label>
+                <input type="number" id="strikePrice" step="0.01" placeholder="590.00" required>
+                
+                <label>Premium ($ amount):</label>
+                <input type="number" id="premium" step="0.01" placeholder="550" required>
+                
+                <label>Expiry Date:</label>
+                <input type="date" id="expiryDate">
+                
+                <label>Notes:</label>
+                <input type="text" id="tradeNotes" placeholder="Optional notes">
+                
+                <button type="submit" class="submit-btn">Log Trade</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://xgzyguuusjfyqpztzipb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnenlndXV1c2pmeXFwenR6aXBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NDQ2MzYsImV4cCI6MjA3MjIyMDYzNn0.0Ck_lfzwsKVt7OWutETZSnPFcjDCXXAjhGIKD-cps7s';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Global state
+        let currentPosition = null;
+        let marketData = null;
+        let performanceData = null;
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            
+            // Set today's date as default
+            document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+        });
+        
+        async function loadDashboard() {
+            showLoading(true);
+            try {
+                await Promise.all([
+                    loadCurrentPosition(),
+                    loadMarketData(),
+                    loadPerformanceData(),
+                    loadRecentTrades()
+                ]);
+                updateDisplay();
+                document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                showAlert('Failed to load dashboard: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function loadCurrentPosition() {
+            const { data, error } = await supabase
+                .from('positions')
+                .select('*')
+                .eq('status', 'active')
+                .single();
+            
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+                throw error;
+            }
+            
+            currentPosition = data;
+        }
+        
+        async function loadMarketData() {
+            // For now, we'll use a simple API or set static data
+            // Later we can integrate Alpha Vantage or similar
+            try {
+                const response = await fetch('https://api.alpha-vantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=demo');
+                const data = await response.json();
+                
+                if (data['Global Quote']) {
+                    marketData = {
+                        price: parseFloat(data['Global Quote']['05. price']),
+                        change: parseFloat(data['Global Quote']['09. change']),
+                        changePercent: data['Global Quote']['10. change percent']
+                    };
+                } else {
+                    // Fallback to demo data
+                    marketData = {
+                        price: 590.05,
+                        change: 2.34,
+                        changePercent: '+0.40%'
+                    };
+                }
+            } catch (error) {
+                // Fallback data
+                marketData = {
+                    price: 590.05,
+                    change: 2.34,
+                    changePercent: '+0.40%'
+                };
+            }
+        }
+        
+        async function loadPerformanceData() {
+            // Calculate from trades
+            const { data: trades, error } = await supabase
+                .from('trades')
+                .select('*')
+                .order('trade_date', { ascending: false });
+            
+            if (error) throw error;
+            
+            let totalPremium = 0;
+            let tradesThisMonth = 0;
+            const thisMonth = new Date().getMonth();
+            const thisYear = new Date().getFullYear();
+            
+            if (trades) {
+                trades.forEach(trade => {
+                    if (trade.action === 'sell') {
+                        totalPremium += parseFloat(trade.premium || 0);
+                    }
+                    
+                    const tradeDate = new Date(trade.trade_date);
+                    if (tradeDate.getMonth() === thisMonth && tradeDate.getFullYear() === thisYear) {
+                        tradesThisMonth++;
+                    }
+                });
+            }
+            
+            const capitalDeployed = currentPosition ? parseFloat(currentPosition.leaps_cost_basis) : 0;
+            const currentValue = currentPosition ? parseFloat(currentPosition.current_value) : 0;
+            
+            performanceData = {
+                totalPremium: totalPremium,
+                currentValue: currentValue,
+                netPnL: (totalPremium + currentValue) - capitalDeployed,
+                tradesThisMonth: tradesThisMonth
+            };
+        }
+        
+        async function loadRecentTrades() {
+            const { data, error } = await supabase
+                .from('trades')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(3);
+            
+            if (error) throw error;
+            
+            const tradesContainer = document.getElementById('recentTrades');
+            
+            if (!data || data.length === 0) {
+                tradesContainer.innerHTML = '<div>No trades recorded yet</div>';
+                return;
+            }
+            
+            tradesContainer.innerHTML = data.map(trade => {
+                const date = new Date(trade.trade_date).toLocaleDateString();
+                const premium = trade.premium ? `$${parseFloat(trade.premium).toFixed(0)}` : '';
+                const strike = trade.strike ? `${trade.strike}C` : '';
+                
+                return `<div style="margin-bottom: 5px;">
+                    ${getActionIcon(trade.action)} ${date}: ${trade.action} ${strike} ${premium}
+                </div>`;
+            }).join('');
+        }
+        
+        function getActionIcon(action) {
+            const icons = {
+                'sell': '✅',
+                'buy_to_close': '❌',
+                'roll_up': '⬆️',
+                'roll_down': '⬇️',
+                'roll_out': '➡️'
+            };
+            return icons[action] || '📝';
+        }
+        
+        function updateDisplay() {
+            // Update performance
+            if (performanceData) {
+                document.getElementById('totalPremium').textContent = `$${performanceData.totalPremium.toFixed(0)}`;
+                document.getElementById('leapsValue').textContent = `$${performanceData.currentValue.toFixed(0)}`;
+                
+                const netPnL = document.getElementById('netPnL');
+                netPnL.textContent = `${performanceData.netPnL >= 0 ? '+' : ''}$${performanceData.netPnL.toFixed(0)}`;
+                netPnL.className = `status-value ${performanceData.netPnL >= 0 ? 'positive' : 'negative'}`;
+                
+                document.getElementById('tradesCount').textContent = performanceData.tradesThisMonth;
+            }
+            
+            // Update market data
+            if (marketData) {
+                const spyPrice = document.getElementById('spyPrice');
+                spyPrice.textContent = `$${marketData.price.toFixed(2)}`;
+                spyPrice.className = `status-value ${marketData.change >= 0 ? 'positive' : 'negative'}`;
+            }
+            
+            // Update position data
+            if (currentPosition) {
+                document.getElementById('leapsStrike').textContent = `$${currentPosition.leaps_strike}`;
+                document.getElementById('leapsDelta').textContent = `${currentPosition.current_delta}%`;
+            }
+            
+            // Update market state and recommendations
+            updateMarketState();
+        }
+        
+        function updateMarketState() {
+            const marketState = analyzeMarketState();
+            document.getElementById('marketState').textContent = marketState;
+            
+            const recommendation = getStrikeRecommendation(marketState);
+            document.getElementById('recommendationContent').innerHTML = `
+                <div class="alert">
+                    <strong>${marketState} Market:</strong> ${recommendation.text}
+                </div>
+            `;
+        }
+        
+        function analyzeMarketState() {
+            if (!marketData || !currentPosition) return "ANALYZING";
+            
+            // Simple market state analysis
+            const change = marketData.change;
+            const price = marketData.price;
+            const leapsStrike = currentPosition.leaps_strike;
+            
+            if (price > leapsStrike * 1.15 && change > 0) {
+                return "VERY STRONG BULL";
+            } else if (price > leapsStrike * 1.10 && change > 0) {
+                return "STRONG BULL";
+            } else if (price > leapsStrike * 1.05) {
+                return "BULL";
+            } else {
+                return "NEUTRAL";
+            }
+        }
+        
+        function getStrikeRecommendation(marketState) {
+            const price = marketData ? marketData.price : 590;
+            
+            switch (marketState) {
+                case "VERY STRONG BULL":
+                    return {
+                        strike: Math.round(price + 2),
+                        text: `Sell 2 OTM at $${Math.round(price + 2)} to capture upside`
+                    };
+                case "STRONG BULL":
+                    return {
+                        strike: Math.round(price),
+                        text: `Sell ATM at $${Math.round(price)} for maximum extrinsic`
+                    };
+                default:
+                    return {
+                        strike: Math.round(price - 1),
+                        text: `Sell 1 ITM at $${Math.round(price - 1)} for protection`
+                    };
+            }
+        }
+        
+        async function runMorningUpdate() {
+            showLoading(true);
+            try {
+                await loadDashboard();
+                showAlert('Morning update complete!', 'success');
+            } catch (error) {
+                showAlert('Update failed: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function checkPosition() {
+            showLoading(true);
+            try {
+                await loadCurrentPosition();
+                updateDisplay();
+                showAlert('Position checked!', 'success');
+            } catch (error) {
+                showAlert('Position check failed: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function openTradeModal(tradeType) {
+            const modal = document.getElementById('tradeModal');
+            modal.style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('tradeModal').style.display = 'none';
+        }
+        
+        // Trade form submission
+        document.getElementById('tradeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const tradeData = {
+                trade_date: document.getElementById('tradeDate').value,
+                action: document.getElementById('tradeAction').value,
+                strike: parseFloat(document.getElementById('strikePrice').value),
+                premium: parseFloat(document.getElementById('premium').value),
+                expiry: document.getElementById('expiryDate').value || null,
+                notes: document.getElementById('tradeNotes').value || null
+            };
+            
+            try {
+                const { error } = await supabase
+                    .from('trades')
+                    .insert([tradeData]);
+                
+                if (error) throw error;
+                
+                showAlert('Trade logged successfully!', 'success');
+                closeModal();
+                
+                // Refresh data
+                await loadDashboard();
+                
+                // Reset form
+                document.getElementById('tradeForm').reset();
+                document.getElementById('tradeDate').value = new Date().toISOString().split('T')[0];
+                
+            } catch (error) {
+                showAlert('Failed to log trade: ' + error.message, 'error');
+            }
+        });
+        
+        async function exportData() {
+            try {
+                const { data: trades, error } = await supabase
+                    .from('trades')
+                    .select('*')
+                    .order('trade_date', { ascending: false });
+                
+                if (error) throw error;
+                
+                if (!trades || trades.length === 0) {
+                    showAlert('No trades to export', 'warning');
+                    return;
+                }
+                
+                // Convert to CSV
+                const headers = ['Date', 'Action', 'Strike', 'Premium', 'Expiry', 'Notes'];
+                const csvContent = [
+                    headers.join(','),
+                    ...trades.map(trade => [
+                        trade.trade_date,
+                        trade.action,
+                        trade.strike || '',
+                        trade.premium || '',
+                        trade.expiry || '',
+                        (trade.notes || '').replace(/,/g, ';') // Replace commas in notes
+                    ].join(','))
+                ].join('\n');
+                
+                // Download file
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `turtle_trades_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                showAlert('Data exported successfully!', 'success');
+                
+            } catch (error) {
+                showAlert('Export failed: ' + error.message, 'error');
+            }
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loadingScreen').style.display = show ? 'block' : 'none';
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${type === 'success' ? 'success' : ''}`;
+            alertDiv.textContent = message;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.left = '50%';
+            alertDiv.style.transform = 'translateX(-50%)';
+            alertDiv.style.zIndex = '1001';
+            alertDiv.style.maxWidth = '90%';
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+        
+        // Click outside modal to close
+        window.onclick = function(event) {
+            const modal = document.getElementById('tradeModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+        
+        // Friday reminder
+        if (new Date().getDay() === 5) { // Friday
+            setTimeout(() => {
+                showAlert('🔔 Friday Reminder: Check expiring positions!', 'warning');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
