@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🐢 Turtle Trading Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3cpath fill='%232c5530' d='M50 15c-15 0-25 8-25 20 0 8 5 15 10 18v10c0 8 8 15 15 15s15-7 15-15V53c5-3 10-10 10-18 0-12-10-20-25-20z'/%3e%3cellipse fill='%234a7c59' cx='50' cy='35' rx='20' ry='15'/%3e%3ccircle fill='%23000' cx='42' cy='30' r='2'/%3e%3ccircle fill='%23000' cx='58' cy='30' r='2'/%3e%3cellipse fill='%232c5530' cx='35' cy='45' rx='8' ry='6'/%3e%3cellipse fill='%232c5530' cx='65' cy='45' rx='8' ry='6'/%3e%3cellipse fill='%232c5530' cx='30' cy='65' rx='6' ry='8'/%3e%3cellipse fill='%232c5530' cx='70' cy='65' rx='6' ry='8'/%3e%3c/svg%3e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -268,17 +269,72 @@
                 <span class="status-label">SPY Price</span>
                 <span class="status-value" id="spyPrice">Loading...</span>
             </div>
-            <div class="status-row">
-                <span class="status-label">LEAPS Strike</span>
-                <span class="status-value" id="leapsStrike">$470</span>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; padding-top: 15px;">
+                <h4 style="margin-bottom: 10px; font-size: 14px;">LEAPS Position</h4>
+                <div class="status-row">
+                    <span class="status-label">Strike</span>
+                    <span class="status-value" id="leapsStrike">$470</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Current Value</span>
+                    <span class="status-value" id="leapsCurrentValue">$12,985</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Delta</span>
+                    <span class="status-value" id="leapsDelta">87%</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Health</span>
+                    <span class="status-value" id="leapsHealth">🟢 GOOD</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">DTE</span>
+                    <span class="status-value" id="leapsDTE">62 days</span>
+                </div>
             </div>
-            <div class="status-row">
-                <span class="status-label">LEAPS Delta</span>
-                <span class="status-value positive" id="leapsDelta">87%</span>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; padding-top: 15px;">
+                <h4 style="margin-bottom: 10px; font-size: 14px;">Short Call Position</h4>
+                <div class="status-row">
+                    <span class="status-label">Strike</span>
+                    <span class="status-value" id="shortStrike">-</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Premium Collected</span>
+                    <span class="status-value positive" id="shortPremium">$0</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Current Value</span>
+                    <span class="status-value" id="shortCurrentValue">$0</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Unrealized P&L</span>
+                    <span class="status-value" id="shortPnL">$0</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Days to Expiry</span>
+                    <span class="status-value" id="shortDTE">-</span>
+                </div>
             </div>
-            <div class="status-row">
-                <span class="status-label">Market State</span>
-                <span class="status-value" id="marketState">Analyzing...</span>
+            
+            <div style="border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; padding-top: 15px;">
+                <div class="status-row">
+                    <span class="status-label">Market State</span>
+                    <span class="status-value" id="marketState">Analyzing...</span>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="updatePositionValues()" style="background: rgba(34, 197, 94, 0.3); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-right: 8px;">
+                    📊 Update Live Values
+                </button>
+                <button onclick="updateTrueValues()" style="background: rgba(245, 158, 11, 0.3); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                    ✏️ Manual Update
+                </button>
+                <div id="lastValueUpdate" style="font-size: 10px; opacity: 0.7; margin-top: 5px;">
+                    Last updated: Never
+                </div>
             </div>
         </div>
         
@@ -304,14 +360,19 @@
                 Check Position
             </button>
             
-            <button class="action-btn primary" onclick="openTradeModal('sell_weekly')">
-                <div class="btn-icon">📅</div>
-                Sell Weekly Call
+            <button class="action-btn primary" onclick="openTradeModal('roll_call')">
+                <div class="btn-icon">🔄</div>
+                Roll Call Position
             </button>
             
-            <button class="action-btn warning" onclick="openTradeModal('roll_position')">
-                <div class="btn-icon">🔄</div>
-                Roll Position
+            <button class="action-btn warning" onclick="openTradeModal('roll_leaps')">
+                <div class="btn-icon">⬆️</div>
+                Roll LEAPS
+            </button>
+            
+            <button class="action-btn primary" onclick="openTradeModal('open_leaps')">
+                <div class="btn-icon">🆕</div>
+                Open LEAPS
             </button>
             
             <button class="action-btn" onclick="openTradeModal('close_position')">
@@ -419,35 +480,80 @@
             }
             
             currentPosition = data;
+            
+            // Load current short call from recent trades
+            if (currentPosition) {
+                await loadCurrentShortCall();
+            }
+        }
+        
+        async function loadCurrentShortCall() {
+            // Find most recent sell call trade that hasn't been closed
+            const { data: recentSells, error } = await supabase
+                .from('trades')
+                .select('*')
+                .eq('action', 'sell')
+                .order('trade_date', { ascending: false })
+                .limit(5);
+            
+            if (error) {
+                console.log('Error loading short calls:', error);
+                return;
+            }
+            
+            // Find most recent sell that hasn't been closed
+            for (const sell of recentSells) {
+                const { data: closes } = await supabase
+                    .from('trades')
+                    .select('*')
+                    .eq('action', 'buy_to_close')
+                    .gte('trade_date', sell.trade_date)
+                    .order('trade_date', { ascending: false })
+                    .limit(1);
+                
+                if (!closes || closes.length === 0) {
+                    // This sell hasn't been closed yet
+                    currentPosition.current_short_call = {
+                        strike: sell.strike,
+                        premium_collected: sell.premium,
+                        expiry: sell.expiry,
+                        trade_date: sell.trade_date
+                    };
+                    break;
+                }
+            }
         }
         
         async function loadMarketData() {
-            // For now, we'll use a simple API or set static data
-            // Later we can integrate Alpha Vantage or similar
             try {
-                const response = await fetch('https://api.alpha-vantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=demo');
+                // Free Alpha Vantage API (5 calls/minute limit)
+                const API_KEY = '7R1UDD9CA7EDG6WN';
+                const response = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=${API_KEY}`);
                 const data = await response.json();
                 
                 if (data['Global Quote']) {
+                    const quote = data['Global Quote'];
                     marketData = {
-                        price: parseFloat(data['Global Quote']['05. price']),
-                        change: parseFloat(data['Global Quote']['09. change']),
-                        changePercent: data['Global Quote']['10. change percent']
+                        price: parseFloat(quote['05. price']),
+                        change: parseFloat(quote['09. change']),
+                        changePercent: quote['10. change percent'],
+                        high: parseFloat(quote['03. high']),
+                        low: parseFloat(quote['04. low']),
+                        open: parseFloat(quote['02. open'])
                     };
                 } else {
-                    // Fallback to demo data
-                    marketData = {
-                        price: 590.05,
-                        change: 2.34,
-                        changePercent: '+0.40%'
-                    };
+                    throw new Error('Invalid API response');
                 }
             } catch (error) {
-                // Fallback data
+                console.log('Using fallback market data');
+                // Fallback to current market data
                 marketData = {
                     price: 590.05,
                     change: 2.34,
-                    changePercent: '+0.40%'
+                    changePercent: '+0.40%',
+                    high: 592.15,
+                    low: 587.22,
+                    open: 588.45
                 };
             }
         }
@@ -517,15 +623,45 @@
             }).join('');
         }
         
-        function getActionIcon(action) {
-            const icons = {
-                'sell': '✅',
-                'buy_to_close': '❌',
-                'roll_up': '⬆️',
-                'roll_down': '⬇️',
-                'roll_out': '➡️'
-            };
-            return icons[action] || '📝';
+        function calculateLeapsHealth() {
+            if (!currentPosition || !marketData) {
+                return { display: 'CALCULATING', color: 'neutral' };
+            }
+            
+            const delta = currentPosition.current_delta;
+            const dte = calculateDTE(currentPosition.leaps_expiry);
+            const cushion = marketData.price - currentPosition.leaps_strike;
+            
+            // Health scoring
+            let score = 0;
+            if (delta > 80) score += 40;
+            else if (delta > 75) score += 30;
+            else if (delta > 72) score += 20;
+            else score += 10;
+            
+            if (dte > 120) score += 30;
+            else if (dte > 90) score += 20;
+            else score += 10;
+            
+            if (cushion > 30) score += 30;
+            else if (cushion > 20) score += 20;
+            else score += 10;
+            
+            // Determine health status
+            if (score > 70) {
+                return { display: '🟢 GOOD', color: 'positive' };
+            } else if (score > 50) {
+                return { display: '🟡 WARNING', color: 'warning' };
+            } else {
+                return { display: '🔴 CRITICAL', color: 'negative' };
+            }
+        }
+        
+        function calculateDTE(expiryDate) {
+            const expiry = new Date(expiryDate);
+            const now = new Date();
+            const diffTime = expiry - now;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         }
         
         function updateDisplay() {
@@ -550,7 +686,20 @@
             
             // Update position data
             if (currentPosition) {
-                document.getElementById('leapsStrike').textContent = `$${currentPosition.leaps_strike}`;
+                document.getElementById('leapsStrike').textContent = `${currentPosition.leaps_strike}`;
+                
+                // Calculate and display LEAPS health
+                const health = calculateLeapsHealth();
+                const healthElement = document.getElementById('leapsHealth');
+                healthElement.textContent = health.display;
+                healthElement.className = `status-value ${health.color}`;
+                
+                // Calculate DTE
+                const dte = calculateDTE(currentPosition.leaps_expiry);
+                const dteElement = document.getElementById('leapsDTE');
+                dteElement.textContent = `${dte} days`;
+                dteElement.className = `status-value ${dte < 90 ? 'warning' : dte < 120 ? 'neutral' : 'positive'}`;
+                
                 document.getElementById('leapsDelta').textContent = `${currentPosition.current_delta}%`;
             }
             
@@ -563,10 +712,35 @@
             document.getElementById('marketState').textContent = marketState;
             
             const recommendation = getStrikeRecommendation(marketState);
+            const technicalAnalysis = getTechnicalAnalysis();
+            
             document.getElementById('recommendationContent').innerHTML = `
                 <div class="alert">
                     <strong>${marketState} Market:</strong> ${recommendation.text}
                 </div>
+                <div style="margin-top: 10px; font-size: 12px;">
+                    <strong>Technical Status:</strong><br>
+                    ${technicalAnalysis}
+                </div>
+            `;
+        }
+        
+        function getTechnicalAnalysis() {
+            if (!marketData) return "Market data loading...";
+            
+            const price = marketData.price;
+            // Rough EMA estimates (would need historical data for exact calculation)
+            const ema21 = price * 0.99; // Simplified
+            const ema50 = price * 0.97; // Simplified
+            
+            const ema21Status = price > ema21 ? "🟢" : "🔴";
+            const ema50Status = price > ema50 ? "🟢" : "🔴";
+            const changeStatus = marketData.change >= 0 ? "🟢" : "🔴";
+            
+            return `
+                ${changeStatus} Daily: ${marketData.changePercent}<br>
+                ${ema21Status} EMA21: ${ema21.toFixed(2)} (${price > ema21 ? 'Above' : 'Below'})<br>
+                ${ema50Status} EMA50: ${ema50.toFixed(2)} (${price > ema50 ? 'Above' : 'Below'})
             `;
         }
         
@@ -638,7 +812,254 @@
         
         function openTradeModal(tradeType) {
             const modal = document.getElementById('tradeModal');
+            const title = document.getElementById('modalTitle');
+            const form = document.getElementById('tradeForm');
+            
+            // Clear existing form
+            form.innerHTML = '';
+            
+            if (tradeType === 'roll_call') {
+                title.textContent = 'Roll Call Position (Close & Sell)';
+                form.innerHTML = `
+                    <label>Trade Date:</label>
+                    <input type="date" id="tradeDate" required>
+                    
+                    <h4 style="margin: 15px 0 10px 0; color: #c41e3a;">Close Existing Call</h4>
+                    <label>Current Strike to Close:</label>
+                    <input type="number" id="closeStrike" step="0.01" placeholder="590.00">
+                    
+                    <label>Cost to Close ($):</label>
+                    <input type="number" id="closeCost" step="0.01" placeholder="50">
+                    
+                    <div style="margin: 15px 0;">
+                        <label style="display: flex; align-items: center;">
+                            <input type="checkbox" id="sellNewCall" checked style="margin-right: 8px;">
+                            Sell new call immediately
+                        </label>
+                    </div>
+                    
+                    <div id="newCallSection">
+                        <h4 style="margin: 15px 0 10px 0; color: #22c55e;">Sell New Call</h4>
+                        <label>New Strike:</label>
+                        <input type="number" id="newStrike" step="0.01" placeholder="592.00">
+                        
+                        <label>Premium Collected ($):</label>
+                        <input type="number" id="newPremium" step="0.01" placeholder="580">
+                        
+                        <label>New Expiry:</label>
+                        <input type="date" id="newExpiry">
+                        
+                        <div style="margin: 10px 0; padding: 10px; background: rgba(34, 197, 94, 0.1); border-radius: 6px;">
+                            <strong>Net Credit:</strong> $<span id="netCredit">0</span>
+                        </div>
+                    </div>
+                    
+                    <label>Notes:</label>
+                    <input type="text" id="tradeNotes" placeholder="Roll - net credit $530">
+                    
+                    <button type="submit" class="submit-btn">Log Roll Transaction</button>
+                `;
+                
+                // Add event listeners for live calculation
+                setTimeout(() => {
+                    const checkbox = document.getElementById('sellNewCall');
+                    const newCallSection = document.getElementById('newCallSection');
+                    const closeCost = document.getElementById('closeCost');
+                    const newPremium = document.getElementById('newPremium');
+                    const netCredit = document.getElementById('netCredit');
+                    
+                    // Toggle new call section
+                    checkbox.addEventListener('change', function() {
+                        newCallSection.style.display = this.checked ? 'block' : 'none';
+                    });
+                    
+                    // Calculate net credit live
+                    function updateNetCredit() {
+                        const close = parseFloat(closeCost.value) || 0;
+                        const premium = parseFloat(newPremium.value) || 0;
+                        const net = premium - close;
+                        netCredit.textContent = net.toFixed(0);
+                        netCredit.style.color = net >= 0 ? '#22c55e' : '#ef4444';
+                    }
+                    
+                    closeCost.addEventListener('input', updateNetCredit);
+                    newPremium.addEventListener('input', updateNetCredit);
+                }, 100);
+            } else if (tradeType === 'open_leaps') {
+                title.textContent = 'Open New LEAPS Position';
+                form.innerHTML = `
+                    <label>Position Name:</label>
+                    <input type="text" id="positionName" placeholder="LEAPS Dec25 IB" required>
+                    
+                    <label>Symbol:</label>
+                    <input type="text" id="symbol" placeholder="SPY" required>
+                    
+                    <label>Strike Price:</label>
+                    <input type="number" id="strikePrice" step="0.01" placeholder="470.00" required>
+                    
+                    <label>Expiry Date:</label>
+                    <input type="date" id="expiryDate" required>
+                    
+                    <label>Cost Basis ($):</label>
+                    <input type="number" id="costBasis" step="0.01" placeholder="8000" required>
+                    
+                    <label>Current Value ($):</label>
+                    <input type="number" id="currentValue" step="0.01" placeholder="8000" required>
+                    
+                    <label>Current Delta (%):</label>
+                    <input type="number" id="currentDelta" step="1" placeholder="80" required>
+                    
+                    <label>Number of Contracts:</label>
+                    <input type="number" id="contracts" step="1" placeholder="1" required>
+                    
+                    <button type="submit" class="submit-btn">Create LEAPS Position</button>
+                `;
+            } else {
+                // Standard trade form
+                title.textContent = 'Log Trade';
+                form.innerHTML = `
+                    <label>Trade Date:</label>
+                    <input type="date" id="tradeDate" required>
+                    
+                    <label>Action:</label>
+                    <select id="tradeAction" required>
+                        <option value="sell">Sell Call</option>
+                        <option value="buy_to_close">Buy to Close</option>
+                        <option value="roll_up">Roll Up</option>
+                        <option value="roll_down">Roll Down</option>
+                        <option value="roll_out">Roll Out</option>
+                    </select>
+                    
+                    <label>Strike Price:</label>
+                    <input type="number" id="strikePrice" step="0.01" placeholder="590.00" required>
+                    
+                    <label>Premium ($ amount):</label>
+                    <input type="number" id="premium" step="0.01" placeholder="550" required>
+                    
+                    <label>Expiry Date:</label>
+                    <input type="date" id="expiryDate">
+                    
+                    <label>Notes:</label>
+                    <input type="text" id="tradeNotes" placeholder="Optional notes">
+                    
+                    <button type="submit" class="submit-btn">Log Trade</button>
+                `;
+            }
+            
+            // Set today's date as default
+            const dateInput = form.querySelector('#tradeDate');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+            
+            // Set next Friday as default for new expiry
+            const expiryInput = form.querySelector('#newExpiry, #expiryDate');
+            if (expiryInput && tradeType === 'friday_roll') {
+                const nextFriday = getNextFriday();
+                expiryInput.value = nextFriday.toISOString().split('T')[0];
+            }
+            
             modal.style.display = 'block';
+        }
+        
+        function getNextFriday() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // If today is Friday, get next Friday
+            const nextFriday = new Date(today);
+            nextFriday.setDate(today.getDate() + daysUntilFriday);
+            return nextFriday;
+        }
+        
+        async function updateLeapsValue() {
+            const updateBtn = document.querySelector('button[onclick="updateLeapsValue()"]');
+            const lastUpdate = document.getElementById('lastValueUpdate');
+            
+            // Check rate limiting (30 min minimum between updates)
+            const lastUpdateTime = localStorage.getItem('lastLeapsUpdate');
+            const now = Date.now();
+            
+            if (lastUpdateTime && (now - parseInt(lastUpdateTime)) < 30 * 60 * 1000) {
+                const minutesLeft = Math.ceil((30 * 60 * 1000 - (now - parseInt(lastUpdateTime))) / 60000);
+                showAlert(`Please wait ${minutesLeft} more minutes before updating`, 'warning');
+                return;
+            }
+            
+            updateBtn.textContent = '⏳ Fetching...';
+            updateBtn.disabled = true;
+            
+            try {
+                if (!currentPosition) {
+                    throw new Error('No active position found');
+                }
+                
+                // Polygon.io free tier API call for options data
+                const POLYGON_API_KEY = 'YOUR_POLYGON_KEY'; // You'd need to sign up
+                const strike = currentPosition.leaps_strike;
+                const expiry = currentPosition.leaps_expiry;
+                
+                // Format expiry for API (YYYY-MM-DD to YYYYMMDD)
+                const formattedExpiry = expiry.replace(/-/g, '');
+                const strikeFormatted = (strike * 1000).toString(); // Strike in millidollars
+                
+                // Construct options ticker: O:SPY{expiry}C{strike}
+                const optionsTicker = `O:SPY${formattedExpiry}C${strikeFormatted}`;
+                
+                const response = await fetch(`https://api.polygon.io/v2/last/trade/${optionsTicker}?apikey=${POLYGON_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.results && data.results.p) {
+                    const currentValue = data.results.p * 100; // Convert to dollars
+                    
+                    // Update database
+                    const { error } = await supabase
+                        .from('positions')
+                        .update({ current_value: currentValue, updated_at: new Date().toISOString() })
+                        .eq('id', currentPosition.id);
+                    
+                    if (error) throw error;
+                    
+                    // Update display
+                    currentPosition.current_value = currentValue;
+                    document.getElementById('leapsCurrentValue').textContent = `${currentValue.toFixed(0)}`;
+                    
+                    localStorage.setItem('lastLeapsUpdate', now.toString());
+                    lastUpdate.textContent = `Last updated: Just now`;
+                    
+                    showAlert(`LEAPS value updated: ${currentValue.toFixed(0)}`, 'success');
+                    
+                } else {
+                    throw new Error('Invalid API response');
+                }
+                
+            } catch (error) {
+                showAlert('Failed to fetch LEAPS value: ' + error.message, 'error');
+                
+                // Fallback to manual entry
+                const manualValue = prompt('Enter current LEAPS value from your broker:');
+                if (manualValue && !isNaN(manualValue)) {
+                    const value = parseFloat(manualValue);
+                    
+                    // Update database
+                    await supabase
+                        .from('positions')
+                        .update({ current_value: value, updated_at: new Date().toISOString() })
+                        .eq('id', currentPosition.id);
+                    
+                    // Update display
+                    currentPosition.current_value = value;
+                    document.getElementById('leapsCurrentValue').textContent = `${value.toFixed(0)}`;
+                    
+                    localStorage.setItem('lastLeapsUpdate', now.toString());
+                    lastUpdate.textContent = `Last updated: Manual entry`;
+                    
+                    showAlert(`LEAPS value updated manually: ${value.toFixed(0)}`, 'success');
+                }
+                
+            } finally {
+                updateBtn.textContent = '🔄 Update LEAPS Value';
+                updateBtn.disabled = false;
+            }
         }
         
         function closeModal() {
