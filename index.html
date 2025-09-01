@@ -1116,8 +1116,6 @@
                     <label>Current Delta (%):</label>
                     <input type="number" id="currentDelta" step="1" placeholder="80" required>
                     
-                    <label>Number of Contracts:</label>
-                    <input type="number" id="contracts" step="1" placeholder="1" required>
                     
                     <button type="submit" class="submit-btn">Create LEAPS Position</button>
                 `;
@@ -1200,7 +1198,6 @@
                 leaps_cost_basis: parseFloat(document.getElementById('costBasis').value),
                 current_value: parseFloat(document.getElementById('currentValue').value),
                 current_delta: parseFloat(document.getElementById('currentDelta').value),
-                contracts: parseFloat(document.getElementById('contracts').value),
                 status: 'active'
             };
             
