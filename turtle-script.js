@@ -296,15 +296,25 @@ function switchToTab(tabType, positionId = null) {
     
     if (tabType === 'overview') {
         currentTab = 'overview';
-        document.querySelector('[onclick="switchToTab(\'overview\')"]').classList.add('active');
-        document.getElementById('overviewTab').classList.add('active');
+        const overviewBtn = document.querySelector('[onclick="switchToTab(\'overview\')"]');
+        const overviewTab = document.getElementById('overviewTab');
+        
+        if (overviewBtn) overviewBtn.classList.add('active');
+        if (overviewTab) overviewTab.classList.add('active');
         updateOverviewDisplay();
     } else if (tabType === 'position' && positionId) {
         currentTab = 'position';
-        document.querySelector(`[onclick="switchToTab('position', ${positionId})"]`).classList.add('active');
-        document.getElementById(`positionTab-${positionId}`).classList.add('active');
-        updatePositionDisplay(positionId);
-        loadRecentTradesForPosition(positionId);
+        const positionBtn = document.querySelector(`[onclick="switchToTab('position', ${positionId})"]`);
+        const positionTab = document.getElementById(`positionTab-${positionId}`);
+        
+        if (positionBtn) positionBtn.classList.add('active');
+        if (positionTab) {
+            positionTab.classList.add('active');
+            updatePositionDisplay(positionId);
+            loadRecentTradesForPosition(positionId);
+        } else {
+            console.error(`Position tab ${positionId} not found`);
+        }
     }
 }
 
