@@ -98,7 +98,8 @@ async function loadPerformanceData() {
         
         if (error) continue;
         
-        let totalPremium = 0;
+        let totalPremiumCollected = 0;
+        let totalPremiumPaid = 0;
         let tradesThisMonth = 0;
         const thisMonth = new Date().getMonth();
         const thisYear = new Date().getFullYear();
@@ -106,9 +107,9 @@ async function loadPerformanceData() {
         if (trades) {
             trades.forEach(trade => {
                 if (trade.action === 'sell') {
-                    totalPremium += parseFloat(trade.premium || 0);
+                    totalPremiumCollected += parseFloat(trade.premium || 0);
                 } else if (trade.action === 'buy_to_close') {
-                    totalPremium -= parseFloat(trade.premium || 0);
+                    totalPremiumPaid += parseFloat(trade.premium || 0);
                 }
                 
                 const tradeDate = new Date(trade.trade_date);
@@ -118,13 +119,31 @@ async function loadPerformanceData() {
             });
         }
         
+        // Calculate current short call liability
+        let currentShortCallValue = 0;
+        if (position.current_short_call) {
+            const shortDTE = calculateDTE(position.current_short_call.expiry);
+            currentShortCallValue = estimateShortCallValue(
+                position.current_short_call.strike, 
+                shortDTE, 
+                position.symbol
+            );
+        }
+        
+        // Calculate net P&L properly
         const capitalDeployed = parseFloat(position.leaps_cost_basis) || 0;
-        const currentValue = parseFloat(position.current_value) || 0;
+        const currentLeapsValue = parseFloat(position.current_value) || 0;
+        const shortCallPnL = (totalPremiumCollected - totalPremiumPaid) - currentShortCallValue;
+        const leapsPnL = currentLeapsValue - capitalDeployed;
         
         performanceByPosition[position.id] = {
-            totalPremium: totalPremium,
-            currentValue: currentValue,
-            netPnL: (totalPremium + currentValue) - capitalDeployed,
+            totalPremiumCollected: totalPremiumCollected,
+            totalPremiumPaid: totalPremiumPaid,
+            currentShortCallValue: currentShortCallValue,
+            shortCallPnL: shortCallPnL,
+            currentValue: currentLeapsValue,
+            leapsPnL: leapsPnL,
+            netPnL: shortCallPnL + leapsPnL,
             tradesThisMonth: tradesThisMonth
         };
     }
@@ -330,18 +349,18 @@ function updateDisplay() {
 }
 
 function updateOverviewDisplay() {
-    let totalPremium = 0;
+    let totalPremiumCollected = 0;
     let totalLeapsValue = 0;
     let totalNetPnL = 0;
     
     Object.values(performanceData).forEach(perf => {
-        totalPremium += perf.totalPremium;
+        totalPremiumCollected += perf.totalPremiumCollected;
         totalLeapsValue += perf.currentValue;
         totalNetPnL += perf.netPnL;
     });
     
     document.getElementById('totalPositions').textContent = allPositions.length;
-    document.getElementById('overviewTotalPremium').textContent = `$${totalPremium.toFixed(0)}`;
+    document.getElementById('overviewTotalPremium').textContent = `$${totalPremiumCollected.toFixed(0)}`;
     document.getElementById('overviewLeapsValue').textContent = `$${totalLeapsValue.toFixed(0)}`;
     
     const netPnLElement = document.getElementById('overviewNetPnL');
@@ -361,7 +380,7 @@ function updateOverviewDisplay() {
                 <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 6px;">
                     <strong>${position.position_name || position.symbol}</strong> 
                     <span style="color: ${health.color};">${health.status}</span>
-                    <br>P&L: <span style="color: ${perf.netPnL >= 0 ? '#4ade80' : '#f87171'};">${perf.netPnL >= 0 ? '+' : ''}${(perf.netPnL || 0).toFixed(0)}</span>
+                    <br>P&L: <span style="color: ${perf.netPnL >= 0 ? '#4ade80' : '#f87171'};">${perf.netPnL >= 0 ? '+' : ''}$${(perf.netPnL || 0).toFixed(0)}</span>
                 </div>
             `;
         });
@@ -375,26 +394,26 @@ function updatePositionDisplay(positionId) {
     
     const perf = performanceData[positionId] || {};
     
-    // Update performance metrics
+    // Update performance metrics with new structure
     const totalPremiumElement = document.getElementById(`totalPremium-${positionId}`);
     if (totalPremiumElement) {
-        totalPremiumElement.textContent = `${perf.totalPremium.toFixed(0)}`;
+        totalPremiumElement.textContent = `$${(perf.totalPremiumCollected || 0).toFixed(0)}`;
     }
     
     const leapsValueElement = document.getElementById(`leapsValue-${positionId}`);
     if (leapsValueElement) {
-        leapsValueElement.textContent = `${perf.currentValue.toFixed(0)}`;
+        leapsValueElement.textContent = `$${(perf.currentValue || 0).toFixed(0)}`;
     }
     
     const netPnLElement = document.getElementById(`netPnL-${positionId}`);
     if (netPnLElement) {
-        netPnLElement.textContent = `${perf.netPnL >= 0 ? '+' : ''}${perf.netPnL.toFixed(0)}`;
-        netPnLElement.className = `status-value ${perf.netPnL >= 0 ? 'positive' : 'negative'}`;
+        netPnLElement.textContent = `${(perf.netPnL || 0) >= 0 ? '+' : ''}$${(perf.netPnL || 0).toFixed(0)}`;
+        netPnLElement.className = `status-value ${(perf.netPnL || 0) >= 0 ? 'positive' : 'negative'}`;
     }
     
     const tradesCountElement = document.getElementById(`tradesCount-${positionId}`);
     if (tradesCountElement) {
-        tradesCountElement.textContent = perf.tradesThisMonth;
+        tradesCountElement.textContent = perf.tradesThisMonth || 0;
     }
     
     // Update LEAPS details
@@ -412,31 +431,31 @@ function updatePositionDisplay(positionId) {
         healthElement.className = `status-value ${health.color}`;
     }
     
-    // Update short call details
+    // Update short call details with corrected P&L
     if (position.current_short_call) {
         const shortCall = position.current_short_call;
         const shortDTE = calculateDTE(shortCall.expiry);
-        const currentShortValue = estimateShortCallValue(shortCall.strike, shortDTE);
+        const currentShortValue = perf.currentShortCallValue || 0;
         const shortPnL = (shortCall.premium_collected || 0) - currentShortValue;
         
         const shortStrikeElement = document.getElementById(`shortStrike-${positionId}`);
         if (shortStrikeElement) {
-            shortStrikeElement.textContent = `${shortCall.strike}`;
+            shortStrikeElement.textContent = `$${shortCall.strike}`;
         }
         
         const shortPremiumElement = document.getElementById(`shortPremium-${positionId}`);
         if (shortPremiumElement) {
-            shortPremiumElement.textContent = `${(shortCall.premium_collected || 0).toFixed(0)}`;
+            shortPremiumElement.textContent = `$${(shortCall.premium_collected || 0).toFixed(0)}`;
         }
         
         const shortCurrentValueElement = document.getElementById(`shortCurrentValue-${positionId}`);
         if (shortCurrentValueElement) {
-            shortCurrentValueElement.textContent = `${currentShortValue.toFixed(0)}`;
+            shortCurrentValueElement.textContent = `$${currentShortValue.toFixed(0)}`;
         }
         
         const shortPnLElement = document.getElementById(`shortPnL-${positionId}`);
         if (shortPnLElement) {
-            shortPnLElement.textContent = `${shortPnL >= 0 ? '+' : ''}${shortPnL.toFixed(0)}`;
+            shortPnLElement.textContent = `${shortPnL >= 0 ? '+' : ''}$${shortPnL.toFixed(0)}`;
             shortPnLElement.className = `status-value ${shortPnL >= 0 ? 'positive' : 'negative'}`;
         }
         
@@ -504,13 +523,18 @@ function calculateDTE(expiryDate) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-function estimateShortCallValue(strike, daysToExpiry) {
-    if (!marketData || daysToExpiry <= 0) return 0;
+function estimateShortCallValue(strike, daysToExpiry, symbol = 'SPY') {
+    if (daysToExpiry <= 0) return 0;
     
-    const spyPrice = marketData.price;
-    const intrinsicValue = Math.max(0, spyPrice - strike);
+    // Use symbol-specific price or fallback to SPY
+    let currentPrice = marketData.price; // Default SPY price
     
-    // Simple time value estimation
+    // For now, use SPY price for all symbols as approximation
+    // This could be enhanced to fetch individual symbol prices
+    
+    const intrinsicValue = Math.max(0, currentPrice - strike);
+    
+    // Simple time value estimation based on DTE
     const timeValueFactor = Math.max(0.1, daysToExpiry / 7);
     const timeValue = timeValueFactor * 2;
     
@@ -535,8 +559,8 @@ async function loadRecentTradesForPosition(positionId) {
     
     tradesContainer.innerHTML = data.map(trade => {
         const date = new Date(trade.trade_date).toLocaleDateString();
-        const premium = trade.premium ? `${parseFloat(trade.premium).toFixed(0)}` : '';
-        const strike = trade.strike ? `${trade.strike}C` : '';
+        const premium = trade.premium ? `$${parseFloat(trade.premium).toFixed(0)}` : '';
+        const strike = trade.strike ? `$${trade.strike}C` : '';
         
         return `<div style="margin-bottom: 5px;">
             ${getActionIcon(trade.action)} ${date}: ${trade.action} ${strike} ${premium}
