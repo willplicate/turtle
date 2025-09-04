@@ -3,7 +3,7 @@ import TradeLogger from '../services/tradeLogging.js';
 import RiskManager from '../services/riskManagement.js';
 import RecommendationEngine from '../services/recommendationEngine.js';
 
-class EventHandeners {
+class EventHandders {
     async handlePositionRoll(positionId) {
         try {
             const position = await PositionManager.fetchPosition(positionId);
@@ -57,4 +57,4 @@ class EventHandeners {
     }
 }
 
-export default new EventHandeners();
+export default new EventHandders();
