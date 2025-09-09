@@ -1,6 +1,8 @@
 // Hybrid Bridge: Legacy Functions + Modular Architecture
 // This file provides backwards compatibility while integrating new modular services
 
+console.log('🐢 turtle-script.js loading started');
+
 // Note: Modular imports temporarily disabled for stability - using simplified offline engine
 // import TurtleApp from './turtle/src/main.js';
 // import RecommendationEngine from './turtle/src/services/recommendationEngine.js';
@@ -801,6 +803,8 @@ window.deletePosition = deletePosition;
 window.testSellCallModal = testSellCallModal;
 window.enableFullTesting = enableFullTesting;
 
+console.log('🐢 All window functions assigned successfully');
+
 // ===== INITIALIZATION =====
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -822,4 +826,6 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closeModal();
     }
-}console.log("Script.js loading test -  Tue Sep 9 09:45:21 CEST 2025 ");
+}
+
+console.log("Script.js loading test -  Tue Sep 9 09:45:21 CEST 2025 ");
