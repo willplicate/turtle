@@ -3,19 +3,65 @@
 
 console.log('🐢 turtle-script.js loading started');
 
+/* 
+=============================================================================
+🚀 REAL DATA INTEGRATION SETUP GUIDE
+=============================================================================
+
+To switch from simulated to real market data:
+
+1. GET API KEYS:
+   • Polygon.io: https://polygon.io/ (Stock prices - $99/month for real-time)
+   • Alpha Vantage: https://www.alphavantage.co/ (Technical indicators - FREE tier available)
+
+2. UPDATE API CONFIGURATION (line ~16):
+   • Replace 'YOUR_POLYGON_API_KEY_HERE' with your actual Polygon.io key
+   • Replace 'YOUR_ALPHA_VANTAGE_KEY_HERE' with your actual Alpha Vantage key
+   • Set USE_REAL_DATA: true
+
+3. TEST:
+   • The system will automatically try real APIs first
+   • Falls back to simulated data if APIs fail
+   • Check console for "🌐 Attempting to fetch real market data..." messages
+
+4. API LIMITS:
+   • Polygon Free: 5 calls/minute (limited data)
+   • Alpha Vantage Free: 5 calls/minute, 500/day
+   • Consider caching results to avoid rate limits
+
+=============================================================================
+*/
+
 // Note: Modular imports temporarily disabled for stability - using simplified offline engine
 // import TurtleApp from './turtle/src/main.js';
 // import RecommendationEngine from './turtle/src/services/recommendationEngine.js';
 
-// Supabase configuration (preserved from original)
-const SUPABASE_URL = 'https://xgzyguuusjfyqpztzipb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnenlndXV1c2pmeXFwenR6aXBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NDQ2MzYsImV4cCI6MjA3MjIyMDYzNn0.0Ck_lfzwsKVt7OWutETZSnPFcjDCXXAjhGIKD-cps7s';
+// =====  API CONFIGURATION =====
+// TODO: Replace with your actual API keys
+const API_CONFIG = {
+    // Polygon.io API (Stock Prices) - https://polygon.io/
+    // Free tier: 5 calls/minute, Limited data
+    // Basic plan: $99/month for real-time data
+    POLYGON_API_KEY: 'YOUR_POLYGON_API_KEY_HERE',
+    
+    // Alpha Vantage API (Technical Indicators) - https://www.alphavantage.co/
+    // Free tier: 5 calls/minute, 500 calls/day
+    ALPHA_VANTAGE_API_KEY: 'YOUR_ALPHA_VANTAGE_KEY_HERE',
+    
+    // Supabase configuration (Database)
+    SUPABASE_URL: 'https://xgzyguuusjfyqpztzipb.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnenlndXV1c2pmeXFwenR6aXBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NDQ2MzYsImV4cCI6MjA3MjIyMDYzNn0.0Ck_lfzwsKVt7OWutETZSnPFcjDCXXAjhGIKD-cps7s',
+    
+    // Feature flags
+    USE_REAL_DATA: false // Set to true when you add real API keys
+};
+
 let supabase = null;
 
 // Initialize Supabase safely
 try {
     if (typeof window !== 'undefined' && window.supabase) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabase = window.supabase.createClient(API_CONFIG.SUPABASE_URL, API_CONFIG.SUPABASE_ANON_KEY);
     }
 } catch (error) {
     console.log('Supabase not available, using offline mode');
@@ -71,7 +117,96 @@ function getNextFriday() {
     return nextFriday;
 }
 
-// ===== RECOMMENDATION ENGINE (ENHANCED WITH RSI & EMA) =====
+// ===== REAL DATA API FUNCTIONS =====
+
+// Fetch real stock price from Polygon.io
+async function fetchRealStockPrice(symbol) {
+    if (!API_CONFIG.USE_REAL_DATA || API_CONFIG.POLYGON_API_KEY === 'YOUR_POLYGON_API_KEY_HERE') {
+        console.log('Using simulated data - set API_CONFIG.USE_REAL_DATA = true and add real API keys');
+        return null;
+    }
+    
+    try {
+        const response = await fetch(
+            `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apikey=${API_CONFIG.POLYGON_API_KEY}`
+        );
+        
+        if (!response.ok) {
+            console.error('Polygon API error:', response.status, response.statusText);
+            return null;
+        }
+        
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            const result = data.results[0];
+            return {
+                price: result.c, // Close price
+                change: result.c - result.o, // Change from open
+                changePercent: ((result.c - result.o) / result.o * 100).toFixed(2) + '%',
+                volume: result.v,
+                timestamp: new Date(result.t)
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching real stock price:', error);
+        return null;
+    }
+}
+
+// Fetch real technical indicators from Alpha Vantage
+async function fetchRealTechnicalIndicators(symbol) {
+    if (!API_CONFIG.USE_REAL_DATA || API_CONFIG.ALPHA_VANTAGE_API_KEY === 'YOUR_ALPHA_VANTAGE_KEY_HERE') {
+        console.log('Using simulated indicators - set API_CONFIG.USE_REAL_DATA = true and add real API keys');
+        return null;
+    }
+    
+    try {
+        // Fetch RSI
+        const rsiResponse = await fetch(
+            `https://www.alphavantage.co/query?function=RSI&symbol=${symbol}&interval=daily&time_period=14&series_type=close&apikey=${API_CONFIG.ALPHA_VANTAGE_API_KEY}`
+        );
+        
+        const rsiData = await rsiResponse.json();
+        
+        // Fetch EMA 12
+        const ema12Response = await fetch(
+            `https://www.alphavantage.co/query?function=EMA&symbol=${symbol}&interval=daily&time_period=12&series_type=close&apikey=${API_CONFIG.ALPHA_VANTAGE_API_KEY}`
+        );
+        
+        const ema12Data = await ema12Response.json();
+        
+        // Fetch EMA 26
+        const ema26Response = await fetch(
+            `https://www.alphavantage.co/query?function=EMA&symbol=${symbol}&interval=daily&time_period=26&series_type=close&apikey=${API_CONFIG.ALPHA_VANTAGE_API_KEY}`
+        );
+        
+        const ema26Data = await ema26Response.json();
+        
+        // Extract latest values
+        const latestRSI = Object.values(rsiData['Technical Analysis: RSI'] || {})[0];
+        const latestEMA12 = Object.values(ema12Data['Technical Analysis: EMA'] || {})[0];
+        const latestEMA26 = Object.values(ema26Data['Technical Analysis: EMA'] || {})[0];
+        
+        if (latestRSI && latestEMA12 && latestEMA26) {
+            return {
+                rsi: parseFloat(latestRSI.RSI),
+                ema12: parseFloat(latestEMA12.EMA),
+                ema26: parseFloat(latestEMA26.EMA),
+                macdLine: parseFloat(latestEMA12.EMA) - parseFloat(latestEMA26.EMA)
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching real technical indicators:', error);
+        return null;
+    }
+}
+
+// ===== RECOMMENDATION ENGINE (ENHANCED WITH REAL/SIMULATED DATA) =====
 
 // Simulated historical price data for RSI/EMA calculations (normally from API)
 function getSimulatedPriceHistory(currentPrice, changePercent) {
@@ -215,16 +350,44 @@ function getTradingRules(recommendation, indicators) {
 }
 
 async function getEnhancedStrikeRecommendation(symbol, currentPrice) {
-    // Get basic price movement data
-    const priceChange = marketData.change;
-    const changePercent = parseFloat(marketData.changePercent.replace('%', '').replace('+', ''));
+    let rsi, ema12, ema26, macdLine, priceChange, changePercent, actualPrice;
     
-    // Simulate historical data and calculate indicators
-    const priceHistory = getSimulatedPriceHistory(currentPrice, changePercent);
-    const rsi = calculateRSI(priceHistory, 14);
-    const ema12 = calculateEMA(priceHistory, 12);
-    const ema26 = calculateEMA(priceHistory, 26);
-    const macdLine = ema12 - ema26;
+    // Try to get real data first
+    if (API_CONFIG.USE_REAL_DATA) {
+        console.log('🌐 Attempting to fetch real market data...');
+        
+        const realPrice = await fetchRealStockPrice(symbol);
+        const realIndicators = await fetchRealTechnicalIndicators(symbol);
+        
+        if (realPrice && realIndicators) {
+            console.log('✅ Using real market data');
+            actualPrice = realPrice.price;
+            priceChange = realPrice.change;
+            changePercent = parseFloat(realPrice.changePercent.replace('%', ''));
+            rsi = realIndicators.rsi;
+            ema12 = realIndicators.ema12;
+            ema26 = realIndicators.ema26;
+            macdLine = realIndicators.macdLine;
+        } else {
+            console.log('⚠️ Real data unavailable, falling back to simulated data');
+            API_CONFIG.USE_REAL_DATA = false; // Don't retry for this session
+        }
+    }
+    
+    // Fallback to simulated data
+    if (!API_CONFIG.USE_REAL_DATA || !rsi) {
+        console.log('📊 Using simulated market data');
+        actualPrice = currentPrice;
+        priceChange = marketData.change;
+        changePercent = parseFloat(marketData.changePercent.replace('%', '').replace('+', ''));
+        
+        // Simulate historical data and calculate indicators
+        const priceHistory = getSimulatedPriceHistory(actualPrice, changePercent);
+        rsi = calculateRSI(priceHistory, 14);
+        ema12 = calculateEMA(priceHistory, 12);
+        ema26 = calculateEMA(priceHistory, 26);
+        macdLine = ema12 - ema26;
+    }
     
     // Enhanced market condition analysis
     let marketCondition = 'NEUTRAL';
@@ -280,12 +443,12 @@ async function getEnhancedStrikeRecommendation(symbol, currentPrice) {
     }
     
     // Additional adjustments based on current price level
-    if (currentPrice > 600) {
+    if (actualPrice > 600) {
         strikeAdjustment -= 0.5; // More conservative at high levels
         rationale += ' (Conservative adjustment for elevated levels)';
     }
     
-    const suggestedStrike = Math.round((currentPrice + strikeAdjustment) * 2) / 2;
+    const suggestedStrike = Math.round((actualPrice + strikeAdjustment) * 2) / 2;
     
     return {
         type: recommendationType,
@@ -300,7 +463,7 @@ async function getEnhancedStrikeRecommendation(symbol, currentPrice) {
             ema26: ema26,
             macdLine: macdLine,
             priceChange: changePercent,
-            currentPrice: currentPrice
+            currentPrice: actualPrice
         }
     };
 }
