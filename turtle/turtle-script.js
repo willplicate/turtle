@@ -8,7 +8,16 @@
 // Supabase configuration (preserved from original)
 const SUPABASE_URL = 'https://xgzyguuusjfyqpztzipb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnenlndXV1c2pmeXFwenR6aXBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NDQ2MzYsImV4cCI6MjA3MjIyMDYzNn0.0Ck_lfzwsKVt7OWutETZSnPFcjDCXXAjhGIKD-cps7s';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase = null;
+
+// Initialize Supabase safely
+try {
+    if (typeof window !== 'undefined' && window.supabase) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+} catch (error) {
+    console.log('Supabase not available, using offline mode');
+}
 
 // Global state (preserved from original)
 let allPositions = [];
