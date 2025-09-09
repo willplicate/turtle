@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐢 Turtle Trading Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="turtle-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading Screen -->
+        <div class="loading" id="loadingScreen">
+            <div class="spinner"></div>
+            <p>Loading turtle data...</p>
+        </div>
+        
+        <!-- Header -->
+        <div class="header">
+            <h1>🐢 Turtle Dashboard</h1>
+            <p id="lastUpdate">Loading...</p>
+        </div>
+        
+        <!-- Position Tabs -->
+        <div class="tabs-container">
+            <div class="tabs-header" id="tabsHeader">
+                <button class="tab-btn active" onclick="switchToTab('overview')">📊 Overview</button>
+                <!-- Position tabs will be added dynamically -->
+                <button class="tab-btn add-position" onclick="openModal('add_position')">
+                    <span class="btn-icon">➕</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div id="mainContent">
+            
+            <!-- Overview Tab Content -->
+            <div id="overviewTab" class="tab-content active">
+                <div class="status-card">
+                    <h3 style="margin-bottom: 15px; text-align: center;">📈 Portfolio Overview</h3>
+                    <div class="status-row">
+                        <span class="status-label">Total Positions</span>
+                        <span class="status-value" id="totalPositions">0</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Total Premium Collected</span>
+                        <span class="status-value positive" id="overviewTotalPremium">$0</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Total LEAPS Value</span>
+                        <span class="status-value" id="overviewLeapsValue">$0</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Portfolio Net P&L</span>
+                        <span class="status-value" id="overviewNetPnL">$0</span>
+                    </div>
+                </div>
+                
+                <div class="status-card">
+                    <h3>🏥 Position Health Summary</h3>
+                    <div id="positionHealthSummary" style="font-size: 12px; margin-top: 10px;">
+                        Loading positions...
+                    </div>
+                </div>
+                
+                <!-- General Actions -->
+                <div class="action-grid">
+                    <button class="action-btn primary" onclick="runMorningUpdate()">
+                        <div class="btn-icon">🌅</div>
+                        Morning Update
+                    </button>
+                    
+                    <button class="action-btn" onclick="exportData()">
+                        <div class="btn-icon">📤</div>
+                        Export All Data
+                    </button>
+                    
+                    <button class="action-btn" onclick="testSellCallModal()" style="background: #10b981;">
+                        <div class="btn-icon">🎯</div>
+                        Test Recommendation
+                    </button>
+                    
+                    <button class="action-btn" onclick="enableFullTesting()" style="background: #8b5cf6;">
+                        <div class="btn-icon">🧪</div>
+                        Enable Full Testing
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Position-Specific Tab Content (will be added dynamically) -->
+            
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Modal</h3>
+            <div id="modalBody">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load modular JavaScript -->
+    <script src="turtle-script.js"></script>
+</body>
+</html>
