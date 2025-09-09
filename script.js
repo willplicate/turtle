@@ -813,4 +813,4 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closeModal();
     }
-}
+}console.log("Script.js loading test -  Tue Sep 9 09:45:21 CEST 2025 ");
