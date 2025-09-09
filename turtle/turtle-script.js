@@ -117,6 +117,119 @@ function getNextFriday() {
     return nextFriday;
 }
 
+// ===== SUPABASE DATABASE FUNCTIONS =====
+
+async function loadPositionsFromDatabase() {
+    if (!supabase) {
+        console.log('📊 No database connection - using offline mode');
+        return [];
+    }
+    
+    try {
+        console.log('🗄️ Loading positions from database...');
+        const { data, error } = await supabase
+            .from('positions')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('Database error loading positions:', error);
+            return [];
+        }
+        
+        console.log(`✅ Loaded ${data?.length || 0} positions from database`);
+        return data || [];
+    } catch (error) {
+        console.error('Error loading positions:', error);
+        return [];
+    }
+}
+
+async function savePositionToDatabase(position) {
+    if (!supabase) {
+        console.log('📊 No database connection - position not saved permanently');
+        return null;
+    }
+    
+    try {
+        console.log('💾 Saving position to database:', position.position_name);
+        const { data, error } = await supabase
+            .from('positions')
+            .insert([position])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('Database error saving position:', error);
+            showAlert('Failed to save position to database', 'error');
+            return null;
+        }
+        
+        console.log('✅ Position saved to database:', data);
+        showAlert('Position saved permanently', 'success');
+        return data;
+    } catch (error) {
+        console.error('Error saving position:', error);
+        showAlert('Database save failed', 'error');
+        return null;
+    }
+}
+
+async function updatePositionInDatabase(positionId, updates) {
+    if (!supabase) {
+        console.log('📊 No database connection - update not saved');
+        return null;
+    }
+    
+    try {
+        console.log('🔄 Updating position in database:', positionId);
+        const { data, error } = await supabase
+            .from('positions')
+            .update({...updates, updated_at: new Date().toISOString()})
+            .eq('id', positionId)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('Database error updating position:', error);
+            return null;
+        }
+        
+        console.log('✅ Position updated in database');
+        return data;
+    } catch (error) {
+        console.error('Error updating position:', error);
+        return null;
+    }
+}
+
+async function saveTradeToDatabase(trade) {
+    if (!supabase) {
+        console.log('📊 No database connection - trade not saved permanently');
+        return null;
+    }
+    
+    try {
+        console.log('💾 Saving trade to database:', trade);
+        const { data, error } = await supabase
+            .from('trades')
+            .insert([trade])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('Database error saving trade:', error);
+            return null;
+        }
+        
+        console.log('✅ Trade saved to database');
+        return data;
+    } catch (error) {
+        console.error('Error saving trade:', error);
+        return null;
+    }
+}
+
 // ===== REAL DATA API FUNCTIONS =====
 
 // Fetch real stock price from Polygon.io
@@ -1132,18 +1245,32 @@ async function handleAddPosition(event) {
         updated_at: new Date().toISOString()
     };
     
-    // Add to positions array
-    allPositions.push(newPosition);
+    // Save to database first
+    const savedPosition = await savePositionToDatabase(newPosition);
     
-    // Update displays
-    createPositionTabs();
-    updateDisplay();
-    
-    // Close modal and show success
-    closeModal();
-    showAlert(`✅ Added position: ${formData.position_name}`, 'success');
-    
-    console.log('New position added:', newPosition);
+    if (savedPosition) {
+        // Use the database-returned position (with proper ID)
+        allPositions.push(savedPosition);
+        
+        // Update displays
+        createPositionTabs();
+        updateDisplay();
+        
+        // Close modal and show success
+        closeModal();
+        showAlert(`✅ Added position: ${formData.position_name}`, 'success');
+        
+        console.log('New position saved to database:', savedPosition);
+    } else {
+        // Fallback: add to memory only
+        allPositions.push(newPosition);
+        createPositionTabs();
+        updateDisplay();
+        closeModal();
+        showAlert(`⚠️ Position added locally (database save failed)`, 'warning');
+        
+        console.log('Position added to memory only:', newPosition);
+    }
 }
 
 async function handleEditPosition(event, positionId) { 
@@ -1153,8 +1280,48 @@ async function handleEditPosition(event, positionId) {
 
 async function handleSellCall(event, positionId) { 
     event.preventDefault();
-    console.log('handleSellCall called'); 
-    showAlert('Sell call logged successfully!', 'success');
+    console.log('handleSellCall called for position:', positionId);
+    
+    // Get form data
+    const tradeData = {
+        position_id: positionId,
+        trade_type: 'sell_call',
+        trade_date: document.getElementById('tradeDate').value,
+        strike: parseFloat(document.getElementById('strike').value),
+        premium_collected: parseFloat(document.getElementById('premium').value),
+        expiry_date: document.getElementById('expiry').value,
+        notes: document.getElementById('notes').value || null,
+        created_at: new Date().toISOString()
+    };
+    
+    // Save trade to database
+    const savedTrade = await saveTradeToDatabase(tradeData);
+    
+    if (savedTrade) {
+        // Update position with current short call
+        const position = allPositions.find(p => p.id === positionId);
+        if (position) {
+            position.current_short_call = {
+                strike: tradeData.strike,
+                premium_collected: tradeData.premium_collected,
+                expiry_date: tradeData.expiry_date,
+                trade_date: tradeData.trade_date
+            };
+            
+            // Update position in database
+            await updatePositionInDatabase(positionId, {
+                current_short_call: position.current_short_call
+            });
+            
+            // Refresh displays
+            updateDisplay();
+        }
+        
+        showAlert(`✅ Call sale recorded: $${tradeData.strike} strike, $${tradeData.premium_collected} collected`, 'success');
+    } else {
+        showAlert('⚠️ Trade saved locally (database save failed)', 'warning');
+    }
+    
     closeModal();
 }
 
@@ -1198,17 +1365,42 @@ console.log('🐢 All window functions assigned successfully');
 
 // ===== INITIALIZATION =====
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('🐢 Turtle Trading Dashboard starting...');
     console.log('Market data:', marketData);
     
-    // Test recommendation engine immediately
+    // Show loading while initializing
+    showLoading(true);
+    
+    // Load real positions from database
+    try {
+        console.log('🗄️ Loading positions from database...');
+        const positions = await loadPositionsFromDatabase();
+        
+        if (positions && positions.length > 0) {
+            allPositions = positions;
+            console.log(`✅ Loaded ${positions.length} positions from database`);
+            
+            // Create tabs and update displays
+            createPositionTabs();
+            updateDisplay();
+            
+            document.getElementById('positionHealthSummary').innerHTML = `${positions.length} positions loaded from database`;
+        } else {
+            console.log('📝 No positions in database yet');
+            document.getElementById('positionHealthSummary').innerHTML = 'No positions yet. Click "+" to add your first LEAPS position or "🧪 Enable Full Testing" for demo data.';
+        }
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        document.getElementById('positionHealthSummary').innerHTML = 'Database connection issue. Using offline mode.';
+    }
+    
+    // Test recommendation engine
     testRecommendationEngine();
     
     // Basic setup
     showLoading(false);
     document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
-    document.getElementById('positionHealthSummary').innerHTML = 'Click "🎯 Test Recommendation" to see the AI recommendation engine in action!';
 });
 
 // Click outside modal to close
