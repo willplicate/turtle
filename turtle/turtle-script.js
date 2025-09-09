@@ -476,18 +476,204 @@ function openModal(modalType, positionId = null) {
     const body = document.getElementById('modalBody');
     
     switch (modalType) {
+        case 'add_position':
+            title.textContent = '📊 Add New LEAPS Position';
+            body.innerHTML = createAddPositionForm();
+            break;
+            
+        case 'edit_position':
+            title.textContent = '✏️ Edit Position';
+            body.innerHTML = createEditPositionForm(positionId);
+            break;
+            
         case 'sell_call':
-            title.textContent = 'Sell Weekly Call';
+            title.textContent = '📞 Sell Weekly Call';
             createSellCallForm(positionId).then(formHTML => {
                 body.innerHTML = formHTML;
             });
             break;
+            
+        case 'buy_to_close':
+            title.textContent = '💰 Buy to Close Call';
+            body.innerHTML = createBuyToCloseForm(positionId);
+            break;
+            
+        case 'roll_leaps':
+            title.textContent = '🔄 Roll LEAPS Position';
+            body.innerHTML = createRollLeapsForm(positionId);
+            break;
+            
+        case 'close_position':
+            title.textContent = '❌ Close Position';
+            body.innerHTML = createClosePositionForm(positionId);
+            break;
+            
         default:
             title.textContent = 'Test Modal';
             body.innerHTML = '<p>Testing modal functionality</p>';
     }
     
     modal.style.display = 'block';
+}
+
+// ===== FORM CREATION FUNCTIONS =====
+
+function createAddPositionForm() {
+    return `
+        <form onsubmit="handleAddPosition(event)">
+            <label>Position Name:</label>
+            <input type="text" id="positionName" placeholder="Main SPY LEAPS" required>
+            
+            <label>Symbol:</label>
+            <input type="text" id="symbol" placeholder="SPY" required style="text-transform: uppercase;">
+            
+            <label>LEAPS Strike Price:</label>
+            <input type="number" id="leapsStrike" step="0.01" placeholder="470.00" required>
+            
+            <label>LEAPS Expiry Date:</label>
+            <input type="date" id="leapsExpiry" required>
+            
+            <label>Number of Contracts:</label>
+            <input type="number" id="contracts" min="1" placeholder="1" value="1" required>
+            
+            <label>Purchase Price per Contract:</label>
+            <input type="number" id="purchasePrice" step="0.01" placeholder="9200.00" required>
+            
+            <label>Purchase Date:</label>
+            <input type="date" id="purchaseDate" value="${new Date().toISOString().split('T')[0]}" required>
+            
+            <label>Notes (Optional):</label>
+            <textarea id="notes" rows="3" placeholder="Long-term bullish position on SPY..."></textarea>
+            
+            <button type="submit" class="submit-btn">📊 Add LEAPS Position</button>
+        </form>
+    `;
+}
+
+function createEditPositionForm(positionId) {
+    const position = allPositions.find(p => p.id === positionId) || {};
+    return `
+        <form onsubmit="handleEditPosition(event, ${positionId})">
+            <label>Position Name:</label>
+            <input type="text" id="positionName" value="${position.position_name || ''}" required>
+            
+            <label>Symbol:</label>
+            <input type="text" id="symbol" value="${position.symbol || ''}" required style="text-transform: uppercase;">
+            
+            <label>LEAPS Strike Price:</label>
+            <input type="number" id="leapsStrike" step="0.01" value="${position.leaps_strike || ''}" required>
+            
+            <label>Current Value per Contract:</label>
+            <input type="number" id="currentValue" step="0.01" value="${position.current_value || ''}" required>
+            
+            <label>Notes (Optional):</label>
+            <textarea id="notes" rows="3">${position.notes || ''}</textarea>
+            
+            <button type="submit" class="submit-btn">✏️ Update Position</button>
+        </form>
+    `;
+}
+
+function createBuyToCloseForm(positionId) {
+    const position = allPositions.find(p => p.id === positionId) || {};
+    const currentCall = position.current_short_call || {};
+    
+    return `
+        <div style="background: #fef3e2; padding: 12px; border-radius: 8px; margin-bottom: 15px; color: #92400e;">
+            <strong>Current Short Call:</strong> $${currentCall.strike || 'N/A'} strike, $${currentCall.premium_collected || '0'} collected
+        </div>
+        
+        <form onsubmit="handleBuyToClose(event, ${positionId})">
+            <label>Close Date:</label>
+            <input type="date" id="closeDate" value="${new Date().toISOString().split('T')[0]}" required>
+            
+            <label>Buy-to-Close Price:</label>
+            <input type="number" id="closePrice" step="0.01" placeholder="120.00" required>
+            
+            <label>Reason for Closing:</label>
+            <select id="closeReason" required>
+                <option value="">Select reason...</option>
+                <option value="profit_target">Profit Target Reached</option>
+                <option value="threat_assignment">Threat of Assignment</option>
+                <option value="earnings_risk">Earnings Risk</option>
+                <option value="technical_change">Technical Analysis Changed</option>
+                <option value="portfolio_management">Portfolio Management</option>
+            </select>
+            
+            <label>Notes (Optional):</label>
+            <textarea id="notes" rows="2" placeholder="Closed at 30% profit..."></textarea>
+            
+            <button type="submit" class="submit-btn">💰 Buy to Close</button>
+        </form>
+    `;
+}
+
+function createRollLeapsForm(positionId) {
+    const position = allPositions.find(p => p.id === positionId) || {};
+    
+    return `
+        <div style="background: #e0f2fe; padding: 12px; border-radius: 8px; margin-bottom: 15px; color: #0277bd;">
+            <strong>Current LEAPS:</strong> $${position.leaps_strike || 'N/A'} strike
+        </div>
+        
+        <form onsubmit="handleRollLeaps(event, ${positionId})">
+            <label>Roll Date:</label>
+            <input type="date" id="rollDate" value="${new Date().toISOString().split('T')[0]}" required>
+            
+            <label>New Strike Price:</label>
+            <input type="number" id="newStrike" step="0.01" placeholder="480.00" required>
+            
+            <label>New Expiry Date:</label>
+            <input type="date" id="newExpiry" required>
+            
+            <label>Roll Credit/Debit:</label>
+            <select id="rollType" required>
+                <option value="credit">Credit (received money)</option>
+                <option value="debit">Debit (paid money)</option>
+            </select>
+            
+            <label>Amount:</label>
+            <input type="number" id="rollAmount" step="0.01" placeholder="150.00" required>
+            
+            <label>Notes (Optional):</label>
+            <textarea id="notes" rows="2" placeholder="Rolled up and out for better delta..."></textarea>
+            
+            <button type="submit" class="submit-btn">🔄 Roll LEAPS</button>
+        </form>
+    `;
+}
+
+function createClosePositionForm(positionId) {
+    const position = allPositions.find(p => p.id === positionId) || {};
+    
+    return `
+        <div style="background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 15px; color: #dc2626;">
+            <strong>⚠️ Warning:</strong> This will permanently close the position "${position.position_name || 'Unknown'}"
+        </div>
+        
+        <form onsubmit="handleClosePosition(event, ${positionId})">
+            <label>Close Date:</label>
+            <input type="date" id="closeDate" value="${new Date().toISOString().split('T')[0]}" required>
+            
+            <label>LEAPS Sale Price per Contract:</label>
+            <input type="number" id="salePrice" step="0.01" placeholder="11500.00" required>
+            
+            <label>Reason for Closing:</label>
+            <select id="closeReason" required>
+                <option value="">Select reason...</option>
+                <option value="profit_target">Profit Target Achieved</option>
+                <option value="stop_loss">Stop Loss Triggered</option>
+                <option value="expiration">Approaching Expiration</option>
+                <option value="portfolio_rebalance">Portfolio Rebalancing</option>
+                <option value="better_opportunity">Better Opportunity</option>
+            </select>
+            
+            <label>Final Notes:</label>
+            <textarea id="notes" rows="3" placeholder="Final P&L summary and lessons learned..." required></textarea>
+            
+            <button type="submit" class="submit-btn" style="background: #dc2626;">❌ Close Position</button>
+        </form>
+    `;
 }
 
 // ENHANCED: Sell Call Form with Recommendation Engine Integration
@@ -915,7 +1101,49 @@ async function exportData() {
 
 async function handleAddPosition(event) { 
     event.preventDefault();
-    console.log('handleAddPosition called'); 
+    console.log('handleAddPosition called');
+    
+    // Get form data
+    const formData = {
+        position_name: document.getElementById('positionName').value,
+        symbol: document.getElementById('symbol').value.toUpperCase(),
+        leaps_strike: parseFloat(document.getElementById('leapsStrike').value),
+        leaps_expiry: document.getElementById('leapsExpiry').value,
+        contracts: parseInt(document.getElementById('contracts').value),
+        purchase_price: parseFloat(document.getElementById('purchasePrice').value),
+        purchase_date: document.getElementById('purchaseDate').value,
+        notes: document.getElementById('notes').value || null
+    };
+    
+    // Create new position object
+    const newPosition = {
+        id: allPositions.length + 1,
+        position_name: formData.position_name,
+        symbol: formData.symbol,
+        leaps_strike: formData.leaps_strike,
+        leaps_expiry: formData.leaps_expiry,
+        contracts: formData.contracts,
+        purchase_price: formData.purchase_price,
+        current_value: formData.purchase_price, // Start with purchase price
+        purchase_date: formData.purchase_date,
+        notes: formData.notes,
+        current_short_call: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+    
+    // Add to positions array
+    allPositions.push(newPosition);
+    
+    // Update displays
+    createPositionTabs();
+    updateDisplay();
+    
+    // Close modal and show success
+    closeModal();
+    showAlert(`✅ Added position: ${formData.position_name}`, 'success');
+    
+    console.log('New position added:', newPosition);
 }
 
 async function handleEditPosition(event, positionId) { 
