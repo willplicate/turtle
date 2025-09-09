@@ -211,9 +211,22 @@ async function saveTradeToDatabase(trade) {
     
     try {
         console.log('💾 Saving trade to database:', trade);
+        
+        // Adapt to your existing schema
+        const tradeRecord = {
+            position_id: trade.position_id,
+            action: trade.trade_type, // Map trade_type to action
+            trade_date: trade.trade_date,
+            strike: trade.strike,
+            premium: trade.premium_collected, // Map premium_collected to premium
+            expiry: trade.expiry_date, // Map expiry_date to expiry  
+            notes: trade.notes,
+            is_deleted: false
+        };
+        
         const { data, error } = await supabase
             .from('trades')
-            .insert([trade])
+            .insert([tradeRecord])
             .select()
             .single();
             
@@ -1285,7 +1298,7 @@ async function handleSellCall(event, positionId) {
     // Get form data
     const tradeData = {
         position_id: positionId,
-        trade_type: 'sell_call',
+        trade_type: 'sell', // Use 'sell' to match your existing data
         trade_date: document.getElementById('tradeDate').value,
         strike: parseFloat(document.getElementById('strike').value),
         premium_collected: parseFloat(document.getElementById('premium').value),
