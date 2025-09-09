@@ -153,9 +153,22 @@ async function savePositionToDatabase(position) {
     
     try {
         console.log('💾 Saving position to database:', position.position_name);
+        
+        // Adapt to your existing schema
+        const positionRecord = {
+            symbol: position.symbol,
+            leaps_strike: position.leaps_strike,
+            leaps_expiry: position.leaps_expiry,
+            leaps_cost_basis: position.purchase_price, // Map purchase_price to leaps_cost_basis
+            current_value: position.current_value,
+            current_delta: position.current_delta || 80.0, // Default delta
+            status: 'active',
+            position_name: position.position_name
+        };
+        
         const { data, error } = await supabase
             .from('positions')
-            .insert([position])
+            .insert([positionRecord])
             .select()
             .single();
             
@@ -654,22 +667,19 @@ function createAddPositionForm() {
             <input type="text" id="symbol" placeholder="SPY" required style="text-transform: uppercase;">
             
             <label>LEAPS Strike Price:</label>
-            <input type="number" id="leapsStrike" step="0.01" placeholder="470.00" required>
+            <input type="number" id="leapsStrike" step="0.01" placeholder="450.00" required>
             
             <label>LEAPS Expiry Date:</label>
             <input type="date" id="leapsExpiry" required>
             
-            <label>Number of Contracts:</label>
-            <input type="number" id="contracts" min="1" placeholder="1" value="1" required>
+            <label>Cost Basis (Total Paid):</label>
+            <input type="number" id="leapsCostBasis" step="0.01" placeholder="5000.00" required>
             
-            <label>Purchase Price per Contract:</label>
-            <input type="number" id="purchasePrice" step="0.01" placeholder="9200.00" required>
+            <label>Current Value (Estimate):</label>
+            <input type="number" id="currentValue" step="0.01" placeholder="5000.00" required>
             
-            <label>Purchase Date:</label>
-            <input type="date" id="purchaseDate" value="${new Date().toISOString().split('T')[0]}" required>
-            
-            <label>Notes (Optional):</label>
-            <textarea id="notes" rows="3" placeholder="Long-term bullish position on SPY..."></textarea>
+            <label>Current Delta (Optional):</label>
+            <input type="number" id="currentDelta" step="0.01" placeholder="80.00" min="0" max="100">
             
             <button type="submit" class="submit-btn">📊 Add LEAPS Position</button>
         </form>
@@ -1229,30 +1239,28 @@ async function handleAddPosition(event) {
     event.preventDefault();
     console.log('handleAddPosition called');
     
-    // Get form data
+    // Get form data  
     const formData = {
         position_name: document.getElementById('positionName').value,
         symbol: document.getElementById('symbol').value.toUpperCase(),
         leaps_strike: parseFloat(document.getElementById('leapsStrike').value),
         leaps_expiry: document.getElementById('leapsExpiry').value,
-        contracts: parseInt(document.getElementById('contracts').value),
-        purchase_price: parseFloat(document.getElementById('purchasePrice').value),
-        purchase_date: document.getElementById('purchaseDate').value,
-        notes: document.getElementById('notes').value || null
+        purchase_price: parseFloat(document.getElementById('leapsCostBasis').value), // Cost basis
+        current_value: parseFloat(document.getElementById('currentValue').value),
+        current_delta: parseFloat(document.getElementById('currentDelta').value) || 80.0
     };
     
-    // Create new position object
+    // Create new position object (matching your schema)
     const newPosition = {
         id: allPositions.length + 1,
         position_name: formData.position_name,
         symbol: formData.symbol,
         leaps_strike: formData.leaps_strike,
         leaps_expiry: formData.leaps_expiry,
-        contracts: formData.contracts,
-        purchase_price: formData.purchase_price,
-        current_value: formData.purchase_price, // Start with purchase price
-        purchase_date: formData.purchase_date,
-        notes: formData.notes,
+        purchase_price: formData.purchase_price, // For database mapping
+        current_value: formData.current_value,
+        current_delta: formData.current_delta,
+        status: 'active',
         current_short_call: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
