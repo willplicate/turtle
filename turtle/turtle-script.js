@@ -42,18 +42,18 @@ const API_CONFIG = {
     // Polygon.io API (Stock Prices) - https://polygon.io/
     // Free tier: 5 calls/minute, Limited data
     // Basic plan: $99/month for real-time data
-    POLYGON_API_KEY: 'YOUR_POLYGON_API_KEY_HERE',
+    POLYGON_API_KEY: 'wfpt139nvZFbUkwpoOXI1Z5Zv98aIwhQ',
     
     // Alpha Vantage API (Technical Indicators) - https://www.alphavantage.co/
     // Free tier: 5 calls/minute, 500 calls/day
-    ALPHA_VANTAGE_API_KEY: 'YOUR_ALPHA_VANTAGE_KEY_HERE',
+    ALPHA_VANTAGE_API_KEY: 'UJGEXOFTD4HSW2NH',
     
     // Supabase configuration (Database)
     SUPABASE_URL: 'https://xgzyguuusjfyqpztzipb.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnenlndXV1c2pmeXFwenR6aXBiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NDQ2MzYsImV4cCI6MjA3MjIyMDYzNn0.0Ck_lfzwsKVt7OWutETZSnPFcjDCXXAjhGIKD-cps7s',
     
     // Feature flags
-    USE_REAL_DATA: false // Set to true when you add real API keys
+    USE_REAL_DATA: true // Both Polygon + Alpha Vantage API keys added - full real market data enabled!
 };
 
 let supabase = null;
