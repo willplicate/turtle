@@ -1097,126 +1097,69 @@ async function loadRecentTradesForPosition(positionId) {
     }
 }
 
-// ===== TEST AND UTILITY FUNCTIONS =====
+// ===== REAL P&L CALCULATION FUNCTIONS =====
 
-// Create comprehensive test data for full dashboard testing
-function createTestPositions() {
-    const testPositions = [
-        {
-            id: 1,
-            position_name: 'Main SPY LEAPS',
-            symbol: 'SPY',
-            leaps_strike: 470.00,
-            leaps_expiry: '2025-01-17',
-            leaps_cost_basis: 8500.00,
-            current_value: 9200.00,
-            current_delta: 82,
-            status: 'active',
-            created_at: '2024-01-15',
-            current_short_call: {
-                id: 101,
-                strike: 592.00,
-                premium_collected: 580.00,
-                expiry: '2024-12-13',
-                trade_date: '2024-12-06'
-            }
-        },
-        {
-            id: 2,
-            position_name: 'QQQ Tech LEAPS',
-            symbol: 'QQQ',
-            leaps_strike: 350.00,
-            leaps_expiry: '2025-06-20',
-            leaps_cost_basis: 6800.00,
-            current_value: 7450.00,
-            current_delta: 78,
-            status: 'active',
-            created_at: '2024-03-10',
-            current_short_call: null
-        }
-    ];
-    
-    allPositions.push(...testPositions);
-    
-    // Create mock performance data
-    performanceData[1] = {
-        totalPremiumCollected: 2340.00,
-        totalPremiumPaid: 150.00,
-        currentShortCallValue: 45.00,
-        shortCallPnL: 535.00,
-        currentValue: 9200.00,
-        leapsPnL: 700.00,
-        netPnL: 1235.00,
-        tradesThisMonth: 3
-    };
-    
-    performanceData[2] = {
-        totalPremiumCollected: 1680.00,
-        totalPremiumPaid: 200.00,
-        currentShortCallValue: 0.00,
-        shortCallPnL: 1480.00,
-        currentValue: 7450.00,
-        leapsPnL: 650.00,
-        netPnL: 2130.00,
-        tradesThisMonth: 2
-    };
-    
-    console.log('✅ Test positions created:', allPositions.length);
-    return testPositions;
-}
-
-async function enableFullTesting() {
-    console.log('🧪 Enabling full dashboard testing mode...');
-    
-    // Create test positions
-    createTestPositions();
-    
-    // Create position tabs
-    createPositionTabs();
-    
-    // Update displays
-    updateDisplay();
-    
-    // Update last update time
-    document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()} (Test Mode)`;
-    
-    // Update position health summary
-    document.getElementById('positionHealthSummary').innerHTML = `
-        <div style="background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px;">
-            <strong>Main SPY LEAPS</strong> 🟢 Healthy<br>
-            P&L: <span style="color: #22c55e;">+$1,235</span>
-        </div>
-        <div style="background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 4px;">
-            <strong>QQQ Tech LEAPS</strong> 🟢 Healthy<br>
-            P&L: <span style="color: #22c55e;">+$2,130</span>
-        </div>
-    `;
-    
-    showAlert('🧪 Full testing mode enabled! Try all features.', 'success');
-}
-
-async function testSellCallModal() {
-    console.log('Testing sell call modal with recommendations...');
-    
-    // Ensure we have test data
-    if (allPositions.length === 0) {
-        createTestPositions();
+async function loadTradesForPosition(positionId) {
+    if (!supabase) {
+        console.log('📊 No database connection for trade history');
+        return [];
     }
     
-    // Open the sell call modal for first position
-    openModal('sell_call', allPositions[0].id);
-}
-
-async function testRecommendationEngine() {
-    console.log('Testing enhanced recommendation engine...');
     try {
-        const testRec = await getEnhancedStrikeRecommendation('SPY', marketData.price);
-        console.log('Enhanced recommendation test result:', testRec);
-        console.log('Technical indicators:', testRec.indicators);
+        const { data, error } = await supabase
+            .from('trades')
+            .select('*')
+            .eq('position_id', positionId)
+            .eq('is_deleted', false)
+            .order('trade_date', { ascending: true });
+            
+        if (error) {
+            console.error('Error loading trades:', error);
+            return [];
+        }
+        
+        return data || [];
     } catch (error) {
-        console.error('Recommendation test failed:', error);
+        console.error('Error loading trades:', error);
+        return [];
     }
 }
+
+function calculatePositionPnL(trades) {
+    let totalPremiumCollected = 0;
+    let totalPremiumPaid = 0;
+    let openCalls = [];
+    
+    trades.forEach(trade => {
+        if (trade.action === 'sell') {
+            totalPremiumCollected += trade.premium;
+            openCalls.push({
+                strike: trade.strike,
+                premium: trade.premium,
+                expiry: trade.expiry,
+                trade_date: trade.trade_date
+            });
+        } else if (trade.action === 'buy_to_close') {
+            totalPremiumPaid += trade.premium;
+            // Remove the most recent open call (simplified matching)
+            if (openCalls.length > 0) {
+                openCalls.pop();
+            }
+        }
+    });
+    
+    const callOptionsPnL = totalPremiumCollected - totalPremiumPaid;
+    
+    return {
+        totalPremiumCollected,
+        totalPremiumPaid,
+        callOptionsPnL,
+        openCallsCount: openCalls.length,
+        tradesCount: trades.length
+    };
+}
+
+// Testing functions removed for production use
 
 async function runMorningUpdate() {
     showLoading(true);
@@ -1379,8 +1322,7 @@ window.handleBuyToClose = handleBuyToClose;
 window.handleRollLeaps = handleRollLeaps;
 window.handleClosePosition = handleClosePosition;
 window.deletePosition = deletePosition;
-window.testSellCallModal = testSellCallModal;
-window.enableFullTesting = enableFullTesting;
+// Testing window assignments removed
 
 console.log('🐢 All window functions assigned successfully');
 
@@ -1409,15 +1351,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('positionHealthSummary').innerHTML = `${positions.length} positions loaded from database`;
         } else {
             console.log('📝 No positions in database yet');
-            document.getElementById('positionHealthSummary').innerHTML = 'No positions yet. Click "+" to add your first LEAPS position or "🧪 Enable Full Testing" for demo data.';
+            document.getElementById('positionHealthSummary').innerHTML = 'No positions yet. Click "+" to add your first LEAPS position.';
         }
     } catch (error) {
         console.error('Error during initialization:', error);
         document.getElementById('positionHealthSummary').innerHTML = 'Database connection issue. Using offline mode.';
     }
     
-    // Test recommendation engine
-    testRecommendationEngine();
+    // Recommendation engine ready for real trading
     
     // Basic setup
     showLoading(false);
